@@ -1,0 +1,105 @@
+<html>
+
+<head>
+ <style type="text/css">
+  body
+  {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    background-color: #C1C1FF;
+  }
+  h1
+  {
+    margin-bottom: 0px;
+  }
+  p
+  {
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+  textarea
+  {
+    margin: 4px;
+}
+
+  .paste_area
+  {
+    background-color: #efeffe;
+    font-family: Consolas, Menlo, Monaco, Lucida Console, monospace, serif;
+    resize: none; 
+    border: 2px solid #48485f;
+    overflow-y: hidden;
+    height: 200px;
+    line-height: 21px;
+    rows: 128;
+    width: 100%
+  }
+  .fsSubmitButton
+  {
+	border-top:		2px solid #a3ceda;
+	border-left:		2px solid #a3ceda;
+	border-right:		2px solid #4f6267;
+	border-bottom:		2px solid #4f6267;
+	padding:		10px 20px !important;
+	font-size:		14px !important;
+	background-color:	#c4f1fe;
+	font-weight:		bold;
+	color:			#2d525d;
+  }
+ </style>
+</head>
+
+<script src="jsaes.js"></script>
+<script src="jsaes_suppl.js"></script>
+<script src="jssha256.js"></script>
+<script src="base64.js"></script>
+<script src="sha1.js"></script>
+<script src="sha1_suppl.js"></script>
+<script src="sprintf.js"></script>
+<script src="tests.js"></script>
+<script src="cryptopaste.js"></script>
+
+<body onload="cryptopaste_init()">
+
+
+<!-- hold all the GUI elements for making a new paste
+    ...this is initially visible, then hidden by js after paste -->
+<div id="new_paste">
+    <h1>Create Paste</h1>
+
+    <div>
+     <textarea placeholder="(private data to protect)" class="paste_area" name="plaintext"></textarea>
+     <textarea placeholder="(password)" class="paste_area" name="password" style="height: 32px"></textarea>
+    </div>
+
+    <div>
+     <input type="button" class="fsSubmitButton" name="paste" value="Paste" onClick="encrypt()" />
+     This allows you to link others to your protected data thru this website. Only ciphertext is stored.
+    </div>
+
+    <div>
+     <input type="button" class="fsSubmitButton" name="what" value="Download" onClick="download()" />
+     This produces a stand-alone, protected HTML document which you can attach to email, archive, etc. Nothing is stored.
+    </div>
+</div>
+
+<!-- hold the GUI elements for displaying the results
+    ...this is initially hidden, then visible after successful paste -->
+<div id="result" style="display:none">
+    <h1>Results</h1>
+
+    <p>Use this link to share your protected data with others:</p>
+    <textarea id="url_share" placeholder="(sharing url)" class="paste_area" style="height: 32px"></textarea>
+    <p>This link shows the raw data stored by the server:</p>
+    <textarea id="url_raw" placeholder="(raw url)" class="paste_area" style="height: 32px"></textarea>
+    <p>You may save a stand-alone protected version of your data here:</p>
+    <textarea id="url_save"  placeholder="(save url)" class="paste_area" style="height: 32px"></textarea>
+</div>
+
+<hr>
+<font size=-2>
+ CryptoPaste is free, open-source, strong, current encryption. | About | FAQ | Contact | Donate
+</font>
+</body>
+
+</html>
