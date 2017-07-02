@@ -167,6 +167,4 @@ function SHA1(array)
     temp = temp.concat(uint32_to_bytes(H3, 'big'))
     temp = temp.concat(uint32_to_bytes(H4, 'big'))
     return temp
-
-
 }
