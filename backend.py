@@ -49,14 +49,14 @@ op = ''
 if 'op' in form:
     op = form['op'].value
 
-if op == 'save':
+if op == 'upload':
     paste = form['paste'].value
     fpath = ''
     fname = ''
 
     # gen file name
     while 1:
-        fname = genFileName('.txt', 4)
+        fname = genFileName('.gpg', 4)
         fpath = './pastes/' + fname
 
         if os.path.exists(fpath):
