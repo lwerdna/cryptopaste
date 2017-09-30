@@ -28,6 +28,11 @@ if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
     import cgitb
     cgitb.enable()
 
+# nChars|   possibilites
+# ------|---------------
+#      1|             62
+#      4|       14776336
+#      8|218340105585896
 def genFileName(ext='', nChars=8):
     random.seed()
     lookup = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -50,13 +55,13 @@ if 'op' in form:
     op = form['op'].value
 
 if op == 'upload':
-    paste = form['paste'].value
+    paste = form['fdata'].value
     fpath = ''
     fname = ''
 
     # gen file name
     while 1:
-        fname = genFileName('.gpg', 4)
+        fname = genFileName('.gpg')
         fpath = './pastes/' + fname
 
         if os.path.exists(fpath):
@@ -70,10 +75,16 @@ if op == 'upload':
     fo.close()
 
     # report back to javascript
-    print 'OK:%s' % fname
+    print fname
 
 elif op == 'test':
     print "OK"
+
+elif op == 'env':
+	print 'form: ', form
+	print '<hr>'
+	print 'env: '
+	print os.environ
 
 else:
     print "ERROR: unrecognized op: \"%s\"" % op

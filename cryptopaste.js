@@ -71,6 +71,10 @@ function ajax_post(url, query) {
 	xmlhttp.send(query)
 	var resp = xmlhttp.responseText
 	console.log("AJAX RESP: " + resp)
+	if(resp.search("A problem occurred in a Python script.") >= 0) {
+		document.write(resp);
+		throw new Error("backend error");
+	}
 	return resp
 }
 
@@ -78,7 +82,7 @@ function ajax_post(url, query) {
 	data_string is like "-----BEGIN PGP..."
 
 	returns the generated file name from the backend */
-function ajaxFile(url, data_string) {
+function ajax_file(url, data_string) {
 	query = 'op=upload&fdata='+encodeURIComponent(data_string)
 	return ajax_post(url, query)
 }
@@ -96,12 +100,12 @@ function unhide_elem(elem) {
 ******************************************************************************/
 
 /* converts "AA" to [0x41, 0x00, 0x41, 0x00,] */
-function str_to_uni16(string)
+function str_to_uni16(input)
 {
 	array = []
 
-	for(var i=0; i<string.length; ++i) {
-		var cc = string.charCodeAt(i)
+	for(var i=0; i<input.length; ++i) {
+		var cc = input.charCodeAt(i)
 
 		if(cc > 65536) {
 			throw("ERROR: char code is greater than 2-bytes!")
@@ -117,7 +121,7 @@ function str_to_uni16(string)
 /* convert [0x41, 0x00, 0x41, 0x00] to "AA" */
 function uni16_to_str(array)
 {
-	var string = ''
+	var result = ''
 
 	if(array.length % 2) {
 		throw("ERROR: array size not a multiple of 2 when decoding uni16")
@@ -125,19 +129,19 @@ function uni16_to_str(array)
 
 	for(var i=0; i<array.length; i+=2) {
 		var cc = array[i] | (array[i+1] << 8)
-		string += String.fromCharCode(cc)
+		result += String.fromCharCode(cc)
 	}
 
-	return string
+	return result
 }
 
 /* converts "AAAA" to [0x41, 0x41, 0x41, 0x41] */
-function ascii_decode(string)
+function ascii_decode(input)
 {
 	array = []
 
-	for(var i=0; i<string.length; ++i) {
-		array.push(string.charCodeAt(i))
+	for(var i=0; i<input.length; ++i) {
+		array.push(input.charCodeAt(i))
 	}
 
 	return array
@@ -146,25 +150,32 @@ function ascii_decode(string)
 /* converts [0x41, 0x41, 0x41, 0x41] to "AAAA" */
 function ascii_encode(array)
 {
-	string = ''
+	result = ''
 
 	for(var i=0; i<array.length; ++i) {
-		string += String.fromCharCode(array[i])
+		result += String.fromCharCode(array[i])
 	}
 
-	return string
+	return result
 }
 
 /* converts [0xDE, 0xAD, 0xBE, 0xEF] to "DEADBEEF" */
 function bytes_pretty(bytes)
 {
-	var string = ''
+	var result = ''
 
 	for(var i=0; i < bytes.length; ++i) {
-		string += sprintf('%02X', bytes[i])
+		result += sprintf('%02X', bytes[i])
 	}
 
-	return string
+	return result
+}
+
+function crypt_gen_random(len)
+{
+	var arr = new Uint8Array(len)
+	window.crypto.getRandomValues(arr)
+	return Array.from(arr)
 }
 
 /* converts [0xDE, 0xAD, 0xBE, 0xEF] to "\xDE\xAD\xBE\xEF" */
@@ -258,8 +269,6 @@ function uint16_to_bytes(x, endian)
 	return rv
 }
 
-
-
 function array_cmp(a, b)
 {
 	if (a.length != b.length) {
@@ -303,10 +312,6 @@ function stricmp(a, b)
 /******************************************************************************
 	OPENPGP FUNCTIONS
 ******************************************************************************/
-
-g_fname = "ptext.txt"
-g_message = "Hello, world!"
-g_passphrase = "pw"
 
 function create_pkt(body, tagid)
 {
@@ -360,14 +365,14 @@ function create_pkt9(ptext, passphrase, salt)
 	c5.setKey(key)
 
 	/* encrypt with OpenPGP CFB Mode (see 13.9) */
-	//prefix = os.urandom(8)
-	prefix = [0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8]
+	prefix = crypt_gen_random(8)
+	console.debug('CAST5 prefix: ' + bytes_pretty(prefix))
 
 	FR = [0,0,0,0,0,0,0,0]
 	FRE = c5.encrypt(FR)
 	console.debug('CAST5 first output: ' + bytes_pretty(FRE))
 	ctext = array_xor(prefix, FRE)
-	console.debug('first ctext: ' + bytes_pretty(ctext))
+	console.debug('CAST5 first ctext: ' + bytes_pretty(ctext))
 
 	FR = ctext
 	FRE = c5.encrypt(FR, key)
@@ -384,13 +389,16 @@ function create_pkt9(ptext, passphrase, salt)
 	return create_pkt(ctext, 9);
 }
 
+// inputs:
+//   msg: bytes eg: [0x41, 0x41, 0x41, 0x41]
 function create_pkt11(msg)
 {
+	fname = 'ptext.txt'
 	body = [0x62]									/* 'b' format (binary) */
-	body = body.concat(g_fname.length)				/* filename len */
-	body = body.concat(ascii_decode(g_fname))		/* filename */
+	body = body.concat(fname.length)				/* filename len */
+	body = body.concat(ascii_decode(fname))			/* filename */
 	body = body.concat([0,0,0,0])					/* date */
-	body = body.concat(ascii_decode(g_message))
+	body = body.concat(msg)
 	return create_pkt(body, 11)
 }
 
@@ -419,30 +427,24 @@ function crc24(bytes)
 function encrypt()
 {
 	/* 1) Select a salt S and an iteration count c */
-	var salt_ui8 = new Uint8Array(8)
-	window.crypto.getRandomValues(salt_ui8)
-	var salt = []
-	for(var i=0; i<8; ++i) {
-		salt[i] = salt_ui8[i]
-	}
-
-	salt = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
+	salt = crypt_gen_random(8)
+	console.debug("salt: " + bytes_pretty(salt));
 
 	var elem_pt = document.getElementsByName("plaintext")[0]
-
+	var elem_pw = document.getElementsByName("password")[0]
+	
+	/* packet 11 is Literal Data Packet (holding the plaintext) */
 	var ptext = ascii_decode(elem_pt.value)
 	//var ptext = str_to_uni16(elem_pt.value)
-
-	console.debug("ptext: " + elem_pt.value)
-
-	/* packet 11 is Literal Data Packet (holding the plaintext) */
-	var pkt11 = create_pkt11(elem_pt);
+	console.debug("ptext: " + bytes_pretty(ptext))
+	var pkt11 = create_pkt11(ptext);
 	console.debug("pkt11: " + bytes_pretty(pkt11))
 
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
-	salt = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
-	pkt9 = create_pkt9(pkt11, ascii_decode("pw"), salt)
+	var pass_bytes = ascii_decode(elem_pw.value)
+	console.debug("pass: " + bytes_pretty(pass_bytes))
+	pkt9 = create_pkt9(pkt11, pass_bytes, salt)
 	console.debug("pkt9: " + bytes_pretty(pkt9))
 
 	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
@@ -476,6 +478,14 @@ function encrypt()
 	output += '\n-----END PGP MESSAGE-----\n'
 	console.debug(output)
 
-	fname = ajaxFile('backend.py', output)
+	fname = ajax_file('backend.py', output)
 	console.debug("backend generated file name: " + fname)
+
+	/* update gui stuff */
+	elem_result.children.url_share.innerText = 'http://cryptopaste.com/read.html?' + fname
+	elem_result.children.url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
+	elem_result.children.url_save.innerText = 'http://cryptopaste.com/save?' + fname
+
+	elem_new_paste.style.display = 'none'
+	elem_result.style.display = ''
 }
