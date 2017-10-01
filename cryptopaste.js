@@ -24,15 +24,37 @@
 	GLOBAL VARIABLES
 ******************************************************************************/
 var elem_new_paste
+var elem_decrypt_paste
 var elem_result
 
 /******************************************************************************
 	FUNCTIONS
 ******************************************************************************/
-function cryptopaste_init()
+function init_new_paste()
 {
 	elem_new_paste = document.getElementById('new_paste')
 	elem_result = document.getElementById('result')
+}
+
+function init_decrypt_paste()
+{
+	elem_decrypt_paste = document.getElementById('decrypt_paste')
+	elem_result = document.getElementById('result')
+
+	/* find the adj_adj_animal */
+	var adj_adj_animal = window.location.pathname
+	if(adj_adj_animal[0] == '/')
+		adj_adj_animal = adj_adj_animal.substr(1)
+	console.debug("adj_adj_animal: " + adj_adj_animal)
+
+	/* form new url */
+	var path_gpg = window.location.href.replace(adj_adj_animal,
+	  "pastes/" + adj_adj_animal + ".gpg")
+	console.debug("path_gpg: " + path_gpg)
+
+	/* read GPG data into the decrypt field */
+	gpg_text = ajax_get(path_gpg)
+	elem_decrypt_paste.children.ciphertext.value = gpg_text	
 }
 
 /******************************************************************************
