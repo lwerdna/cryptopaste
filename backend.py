@@ -22,25 +22,12 @@
 import os
 import cgi
 import random
+import namegen
 
 # if running on localhost, enable debugging
 if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
     import cgitb
     cgitb.enable()
-
-# nChars|   possibilites
-# ------|---------------
-#      1|             62
-#      4|       14776336
-#      8|218340105585896
-def genFileName(ext='', nChars=8):
-    random.seed()
-    lookup = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    fname = ''
-    for i in range(nChars):
-        fname += lookup[random.randint(0,len(lookup)-1)]
-    fname += ext
-    return fname
 
 #------------------------------------------------------------------------------
 # MAIN
@@ -61,7 +48,7 @@ if op == 'upload':
 
     # gen file name
     while 1:
-        fname = genFileName('.gpg')
+        fname = namegen.gen_name() + '.gpg'
         fpath = './pastes/' + fname
 
         if os.path.exists(fpath):
@@ -75,10 +62,10 @@ if op == 'upload':
     fo.close()
 
     # report back to javascript
-    print fname
+    print fname,
 
 elif op == 'test':
-    print "OK"
+    print "OK",
 
 elif op == 'env':
 	print 'form: ', form
@@ -87,5 +74,5 @@ elif op == 'env':
 	print os.environ
 
 else:
-    print "ERROR: unrecognized op: \"%s\"" % op
+    print "ERROR: unrecognized op: \"%s\"" % op,
 

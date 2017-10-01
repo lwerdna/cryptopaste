@@ -73,7 +73,7 @@ function ajax_post(url, query) {
 	console.log("AJAX RESP: " + resp)
 	if(resp.search("A problem occurred in a Python script.") >= 0) {
 		document.write(resp);
-		throw new Error("backend error");
+		throw("ERROR: backend error: python script");
 	}
 	return resp
 }
@@ -479,12 +479,15 @@ function encrypt()
 	console.debug(output)
 
 	fname = ajax_file('backend.py', output)
-	console.debug("backend generated file name: " + fname)
+	fname = fname.trim()
+	if(fname.substr(fname.length-4) != ".gpg")
+		throw("ERROR: backend generating file name");
+	adj_adj_anim = fname.substr(0,fname.length-4)
 
 	/* update gui stuff */
-	elem_result.children.url_share.innerText = 'http://cryptopaste.com/read.html?' + fname
+	elem_result.children.url_share.innerText = 'http://cryptopaste.com/' + adj_adj_anim
 	elem_result.children.url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
-	elem_result.children.url_save.innerText = 'http://cryptopaste.com/save?' + fname
+	elem_result.children.url_save.innerText = 'http://cryptopaste.com/save?' + adj_adj_anim
 
 	elem_new_paste.style.display = 'none'
 	elem_result.style.display = ''
