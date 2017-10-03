@@ -359,6 +359,53 @@ function create_pkt(body, tagid)
 	return pkt_hdr.concat(body)						/* add hdr */
 }
 
+function read_pkt(data)
+{
+	var result
+	var tag_byte = data[0]
+
+	if(!(tag_byte & 0x80))
+		throw("ERROR: tag byte should have MSB set")
+
+	if(tag_byte & 0x40)
+		throw("ERROR: new stream format unsupported")
+
+	var hdr_len, body_len
+	var tag_val = (tag_byte & 0x2C) >>> 2
+	var len_type = tag_byte & 0x3
+
+	if(len_type == 0) {
+		body_len = data[1]
+		hdr_len = 2
+	}
+	else if(len_type == 1) {
+		body_len = (data[1] << 8) | data[2]
+		hdr_len = 3
+	}
+	else if(len_type == 2) {
+		body_len = (data[1]<<24) | (data[2]<<16) | (data[3]<<8) | data[4]
+		hdr_len = 4
+	}
+	else {
+		throw("ERROR: indeterminate packet length unsupported")
+	}
+	
+	console.log("pkt     type: " + tag_val)
+	console.log("pkt  hdr_len: " + hdr_len)
+	console.log("pkt body_len: " + body_len)
+
+	if(hdr_len + body_len > data.length)
+		throw("ERROR: packet is larger than available data")
+	
+	body = data.slice(hdr_len, hdr_len + body_len)
+
+	return {'type': tag_val,
+			'length': hdr_len + body_len,
+			'header': data.slice(0, hdr_len),
+			'body': data.slice(hdr_len, hdr_len + body_len)
+		}
+}
+
 function create_pkt3(salt)
 {
 	body = [0x04]									/* version */
@@ -445,6 +492,83 @@ function crc24(bytes)
 /******************************************************************************
 	FORM INTERACTION, CALLBACKS
 ******************************************************************************/
+
+function decrypt()
+{
+	var ctext = document.getElementById("ciphertext").value
+	var passw = document.getElementById("password").value
+
+	/* strip header, footer */
+	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
+		throw("ERROR: missing .gpg header");
+	ctext = ctext.substr(29)
+
+	if(ctext.substr(-27) != '\n-----END PGP MESSAGE-----\n')
+		throw("ERROR: missing .gpg footer");
+	ctext = ctext.substr(0, ctext.length-27)
+
+	/* split body, checksum, verify */
+	var idx_last_nl = ctext.length-1
+	for(var i=0; i<8; ++i) {
+		if(ctext[idx_last_nl] == '\n')
+			break
+		idx_last_nl -= 1
+	}
+
+	if(idx_last_nl == ctext.length-1)
+		throw("ERROR: missing ascii armor checksum");
+
+	if(ctext[idx_last_nl+1] != '=')
+		throw("ERROR: malformed ascii armor checksum");
+
+	var csum = ctext.substr(idx_last_nl+2)
+	csum = Array.from(atob(csum))
+	csum = csum.map(function(x) { return x.charCodeAt(0); })
+
+	if(csum.length != 3)
+		throw("ERROR: expected checksum to decode to 3 bytes");
+
+	csum = (csum[0]<<16) | (csum[1]<<8) | csum[2];
+	console.log("csum given: " + csum.toString(16))
+
+	ctext = ctext.substr(0, idx_last_nl)
+	ctext = Array.from(atob(ctext))
+	ctext = ctext.map(function(x) { return x.charCodeAt(0); })
+	console.debug("ctext: " + bytes_pretty(ctext))
+
+	var csum_calc = crc24(ctext)
+	console.log("csum calculated: " + csum_calc.toString(16))
+	if(csum != csum_calc)
+		throw("ERROR: checksum mismatch")
+
+	/* extract, check pkt3 */
+	var pkt_info = read_pkt(ctext)
+	ctext = ctext.slice(pkt_info['header'].length + pkt_info['body'].length)
+
+	if(pkt_info['type'] != 3)
+		throw("ERROR: expected gpg packet 3 (encrypted session key params)")
+
+	if(pkt_info['body'][0] != 4)
+		throw("ERROR: support only for pkt3 version 4")
+	if(pkt_info['body'][1] != 3)
+		throw("ERROR: support only for pkt3 block algo 3 (CAST5)")
+	if(pkt_info['body'][2] != 3)
+		throw("ERROR: support only for pkt3 s2k algo 3 (iterated+salted)")
+	if(pkt_info['body'][3] != 2)
+		throw("ERROR: support only for pkt3 hash id 2 (sha1)")
+
+	if(pkt_info['length'] - pkt_info['header'].length != 13)
+		throw("ERROR: expected len(pkt3) == 13")
+
+	var salt = pkt_info['body'].slice(5, 5+9)
+
+	if(pkt_info['body'][12] != 0x60)
+		throw("ERROR: support only for pkt3 s2k iterations id 60 (65536)")
+
+	/* process packet 3 */
+
+	console.log("no way")	
+}
 
 function encrypt()
 {
