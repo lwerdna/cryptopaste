@@ -417,17 +417,27 @@ function create_pkt3(salt)
 	return create_pkt(body, 3)
 }
 
+/* pgp's key derivation function (KDF) */
+function s2k(passphrase, salt, hash_id, iters, key_len)
+{
+	var msg = salt.concat(passphrase)
+
+	while(msg.length < iters)
+		msg = msg.concat(msg)
+	msg = msg.slice(0,iters)
+
+	var digest
+	if(hash_id == 2)
+		digest = SHA1(msg)							/* hash it */
+	else
+		throw("ERROR: support only for hash id 2 (SHA1)");
+
+	return digest.slice(0, key_len)
+}
+
 function create_pkt9(ptext, passphrase, salt)
 {
-	msg = []
-	while(msg.length < 65536) {
-		msg = msg.concat(salt, passphrase)
-	}
-	msg = msg.slice(0,65536)
-
-	digest = SHA1(msg)								/* hash it */
-
-	key = digest.slice(0,16)						/* CAST5 key is 16 bytes of hash */
+	key = s2k(passphrase, salt, 2, 65536, 16)
 	console.debug('CAST5 key: ' + bytes_pretty(key))
 
 	c5 = new OpenpgpSymencCast5()
