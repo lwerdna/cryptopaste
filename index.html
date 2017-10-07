@@ -36,15 +36,16 @@
   }
   .fsSubmitButton
   {
-	border-top:		2px solid #a3ceda;
-	border-left:		2px solid #a3ceda;
-	border-right:		2px solid #4f6267;
-	border-bottom:		2px solid #4f6267;
-	padding:		10px 20px !important;
-	font-size:		14px !important;
-	background-color:	#c4f1fe;
-	font-weight:		bold;
-	color:			#2d525d;
+    border-top:       2px solid #a3ceda;
+    border-left:      2px solid #a3ceda;
+    border-right:     2px solid #4f6267;
+    border-bottom:    2px solid #4f6267;
+    padding:          10px 20px !important;
+    font-size:        14px !important;
+    background-color: #c4f1fe;
+    font-weight:      bold;
+    color:            #2d525d;
+    width:            100%;
   }
  </style>
 </head>
@@ -57,42 +58,77 @@
 <script src="cast5.js"></script>
 <script src="cryptopaste.js"></script>
 
-<body onload="init_new_paste()">
+<body onload="cryptopaste_init()">
 
+<h1 id=mode>Mode</h1>
 
-<!-- hold all the GUI elements for making a new paste
-    ...this is initially visible, then hidden by js after paste -->
-<div id="new_paste">
-    <h1>Create Paste</h1>
+<textarea id="plaintext"
+       class="paste_area"
+ placeholder="(private data to protect)"
+       style="display:none">
+</textarea>
 
-    <div>
-     <textarea placeholder="(private data to protect)" class="paste_area" name="plaintext"></textarea>
-     <textarea placeholder="(password)" class="paste_area" name="password" style="height: 32px"></textarea>
-    </div>
+<textarea id="ciphertext"
+       class="paste_area"
+ placeholder="(your encrypted text will go here)"
+       style="display:none">
+</textarea>
 
-    <div>
-     <input type="button" class="fsSubmitButton" name="paste" value="Paste" onClick="encrypt()" />
-     This allows you to link others to your protected data thru this website. Only ciphertext is stored.
-    </div>
+<textarea id="password"
+       class="paste_area"
+       style="height: 32px; display:none"
+ placeholder="(password)">
+</textarea>
 
-    <div>
-     <input type="button" class="fsSubmitButton" name="what" value="Download" onClick="download()" />
-     This produces a stand-alone, protected HTML document which you can attach to email, etc. Nothing is stored.
-    </div>
-</div>
+<input type="button"
+         id="decrypt_btn"
+      class="fsSubmitButton"
+      value="Decrypt"
+      style="display:none"
+    onClick="decrypt()"/>
 
-<!-- hold the GUI elements for displaying the results
-    ...this is initially hidden, then visible after successful paste -->
-<div id="result" style="display:none">
-    <h1>Results</h1>
+<input type="button"
+         id="encrypt_btn"
+      class="fsSubmitButton"
+      value="Encrypt*"
+      style="display:none"
+    onClick="encrypt()"/>
 
-    <p>Use this link to share your protected data with others:</p>
-    <textarea id="url_share" placeholder="(sharing url)" class="paste_area" style="height: 32px"></textarea>
-    <p>This link shows the raw data stored by the server:</p>
-    <textarea id="url_raw" placeholder="(raw url)" class="paste_area" style="height: 32px"></textarea>
-    <p>This link will provide a self-decrypting html document that you can save locally:</p>
-    <textarea id="url_save" placeholder="(save url)" class="paste_area" style="height: 32px"></textarea>
-</div>
+<p id="encrypt_note"
+ style="display:none">
+    *This is a local operation performed by your browser. Nothing will be transmitted yet
+</p>
+
+<input type="button"
+         id="host_btn"
+      class="fsSubmitButton"
+      value="Host Ciphertext"
+      style="display:none"
+    onClick="host()"/>
+
+<input type="button"
+         id="local_btn"
+      class="fsSubmitButton"
+      value="Save Self-Decrypting Document"
+      style="display:none"
+    onClick="encrypt()"/>
+
+<p id="url_share_info">
+  Use this link to share your protected data with others
+</p>
+<textarea id="url_share"
+       class="paste_area"
+       style="height: 32px; dispay:none"
+ placeholder="(sharing url)">
+</textarea>
+
+<p id="url_raw_info">
+  This link shows the raw data stored by the server:
+</p>
+<textarea id="url_raw"
+       class="paste_area"
+       style="height: 32px; display:none">
+</textarea>
 
 <hr>
 <font size=-2>

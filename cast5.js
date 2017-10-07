@@ -602,6 +602,10 @@ function Cast5(key) {
   this.encrypt = function(block) {
     return this.cast5.encrypt(block);
   };
+
+  this.decrypt = function(block) {
+	return this.cast5.decrypt(block);
+  };
 }
 
 Cast5.blockSize = Cast5.prototype.blockSize = 8;

@@ -23,38 +23,129 @@
 /******************************************************************************
 	GLOBAL VARIABLES
 ******************************************************************************/
-var elem_new_paste
-var elem_decrypt_paste
-var elem_result
+var elem_mode
+
+var elem_plaintext
+var elem_ciphertext
+var elem_password
+
+var elem_decrypt_btn
+var elem_encrypt_btn
+var elem_host_btn
+var elem_local_btn
+
+var elem_url_share_info
+var elem_url_share
+
+var elem_url_raw_info
+var elem_url_raw
 
 /******************************************************************************
 	FUNCTIONS
 ******************************************************************************/
-function init_new_paste()
+function cryptopaste_init()
 {
-	elem_new_paste = document.getElementById('new_paste')
-	elem_result = document.getElementById('result')
+	/* collect important elements */
+	elem_mode = document.getElementById('mode')
+
+	elem_plaintext = document.getElementById('plaintext')
+	elem_ciphertext = document.getElementById('ciphertext')
+	elem_password = document.getElementById('password')
+
+	elem_decrypt_btn = document.getElementById('decrypt_btn')
+	elem_encrypt_btn = document.getElementById('encrypt_btn')
+	elem_host_btn = document.getElementById('host_btn')
+	elem_local_btn = document.getElementById('local_btn')
+
+	elem_url_share_info = document.getElementById('url_share_info')
+	elem_url_share = document.getElementById('url_share')
+
+	elem_url_raw_info = document.getElementById('url_raw_info')
+	elem_url_raw = document.getElementById('url_raw')
+
+	/* decide what mode we're in, toggling relevant elements */
+	if(window.location.pathname == '/') {
+		if(elem_ciphertext.value == '')
+			mode = 'encrypt'
+		else
+			mode = 'decrypt'
+	}
+	else {
+		var adj_adj_animal = window.location.pathname
+		if(adj_adj_animal[0] == '/')
+			adj_adj_animal = adj_adj_animal.substr(1)
+		console.debug("adj_adj_animal: " + adj_adj_animal)
+	
+		/* form new url */
+		var path_gpg = window.location.href.replace(adj_adj_animal,
+		  "pastes/" + adj_adj_animal + ".gpg")
+		console.debug("path_gpg: " + path_gpg)
+	
+		/* read GPG data into the decrypt field */
+		var gpg_text = ajax_get(path_gpg)
+		elem_ciphertext.value = gpg_text	
+
+		mode = 'decrypt'
+	}
+
+	mode_activate(mode);
 }
 
-function init_decrypt_paste()
+/* show elements corresponding to the current mode */
+function mode_activate(mode)
 {
-	elem_decrypt_paste = document.getElementById('decrypt_paste')
-	elem_result = document.getElementById('result')
+	console.debug("mode_activate(): " + mode)
 
-	/* find the adj_adj_animal */
-	var adj_adj_animal = window.location.pathname
-	if(adj_adj_animal[0] == '/')
-		adj_adj_animal = adj_adj_animal.substr(1)
-	console.debug("adj_adj_animal: " + adj_adj_animal)
+	/* hide everything */
+	elem_plaintext.style.display = 'none'
+	elem_ciphertext.style.display = 'none'
+	elem_password.style.display = 'none'
 
-	/* form new url */
-	var path_gpg = window.location.href.replace(adj_adj_animal,
-	  "pastes/" + adj_adj_animal + ".gpg")
-	console.debug("path_gpg: " + path_gpg)
+	elem_encrypt_btn.style.display = 'none'
+	elem_decrypt_btn.style.display = 'none'
+	elem_host_btn.style.display = 'none'
+	elem_local_btn.style.display = 'none'
 
-	/* read GPG data into the decrypt field */
-	gpg_text = ajax_get(path_gpg)
-	elem_decrypt_paste.children.ciphertext.value = gpg_text	
+	elem_url_share_info.style.display = 'none'
+	elem_url_share.style.display = 'none'
+
+	elem_url_raw_info.style.display = 'none'
+	elem_url_raw.style.display = 'none'
+
+	if(mode == 'encrypt') {
+		elem_mode.innerText = "Encrypt"
+		elem_plaintext.style.display = ''
+		elem_password.style.display = ''
+		elem_encrypt_btn.style.display = ''
+	}
+	else
+	if(mode == 'staging') {
+		elem_mode.innerText = "Staging"
+		elem_ciphertext.style.display = ''
+		elem_host_btn.style.display = ''
+		elem_local_btn.style.display = ''
+	}
+	else
+	if(mode == 'decrypt') {
+		elem_mode.innerText = "Decrypt"
+		elem_ciphertext.style.display = ''
+		elem_password.style.display = ''
+		elem_decrypt_btn.style.display = ''
+	}
+	else
+	if(mode == 'decrypted') {
+		elem_mode.innerText = "Decryption Successful"
+		elem_plaintext.style.display = ''
+	}
+	else
+	if(mode == 'hosted') {
+		elem_mode.innerText = "Hosted"
+		elem_url_share_info.style.display = ''
+		elem_url_share.style.display = ''
+
+		elem_url_raw_info.style.display = ''
+		elem_url_raw.style.display = ''
+	}
 }
 
 /******************************************************************************
@@ -95,7 +186,7 @@ function ajax_post(url, query) {
 	console.log("AJAX RESP: " + resp)
 	if(resp.search("A problem occurred in a Python script.") >= 0) {
 		document.write(resp);
-		throw("ERROR: backend error: python script");
+		errquit("backend error: python script");
 	}
 	return resp
 }
@@ -130,7 +221,7 @@ function str_to_uni16(input)
 		var cc = input.charCodeAt(i)
 
 		if(cc > 65536) {
-			throw("ERROR: char code is greater than 2-bytes!")
+			errquit("char code is greater than 2-bytes!")
 		}
 
 		array.push(cc & 0xFF)
@@ -146,7 +237,7 @@ function uni16_to_str(array)
 	var result = ''
 
 	if(array.length % 2) {
-		throw("ERROR: array size not a multiple of 2 when decoding uni16")
+		errquit("array size not a multiple of 2 when decoding uni16")
 	}
 
 	for(var i=0; i<array.length; i+=2) {
@@ -331,6 +422,12 @@ function stricmp(a, b)
 	return -1;
 }
 
+function errquit(msg)
+{
+	alert(msg)
+	throw('ERROR: ' + msg)
+}
+
 /******************************************************************************
 	OPENPGP FUNCTIONS
 ******************************************************************************/
@@ -365,10 +462,10 @@ function read_pkt(data)
 	var tag_byte = data[0]
 
 	if(!(tag_byte & 0x80))
-		throw("ERROR: tag byte should have MSB set")
+		errquit("tag byte should have MSB set")
 
 	if(tag_byte & 0x40)
-		throw("ERROR: new stream format unsupported")
+		errquit("new stream format unsupported")
 
 	var hdr_len, body_len
 	var tag_val = (tag_byte & 0x2C) >>> 2
@@ -387,7 +484,7 @@ function read_pkt(data)
 		hdr_len = 4
 	}
 	else {
-		throw("ERROR: indeterminate packet length unsupported")
+		errquit("indeterminate packet length unsupported")
 	}
 	
 	console.log("pkt     type: " + tag_val)
@@ -395,7 +492,7 @@ function read_pkt(data)
 	console.log("pkt body_len: " + body_len)
 
 	if(hdr_len + body_len > data.length)
-		throw("ERROR: packet is larger than available data")
+		errquit("packet is larger than available data")
 	
 	body = data.slice(hdr_len, hdr_len + body_len)
 
@@ -418,19 +515,26 @@ function create_pkt3(salt)
 }
 
 /* pgp's key derivation function (KDF) */
-function s2k(passphrase, salt, hash_id, iters, key_len)
+function s2k(passphrase, salt, hash_id, count, key_len)
 {
-	var msg = salt.concat(passphrase)
+	/* if sent "AAAA" convert to [0x41, 0x41, 0x41, 0x41] */
+	if(typeof(passphrase) == "string") {
+		var tmp = ascii_decode(passphrase)
+		console.debug("passphrase: " + passphrase + " -> " + bytes_pretty(tmp))
+		passphrase = tmp
+	}
 
-	while(msg.length < iters)
+	var msg = salt.concat(passphrase)
+	
+	while(msg.length < count)
 		msg = msg.concat(msg)
-	msg = msg.slice(0,iters)
+	msg = msg.slice(0,count)
 
 	var digest
 	if(hash_id == 2)
 		digest = SHA1(msg)							/* hash it */
 	else
-		throw("ERROR: support only for hash id 2 (SHA1)");
+		errquit("support only for hash id 2 (SHA1)");
 
 	return digest.slice(0, key_len)
 }
@@ -506,15 +610,18 @@ function crc24(bytes)
 function decrypt()
 {
 	var ctext = document.getElementById("ciphertext").value
-	var passw = document.getElementById("password").value
+	var passphrase = document.getElementById("password").value
+
+	if(!passphrase.length)
+		errquit('missing passphrase')
 
 	/* strip header, footer */
 	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
-		throw("ERROR: missing .gpg header");
+		errquit("missing .gpg header");
 	ctext = ctext.substr(29)
 
 	if(ctext.substr(-27) != '\n-----END PGP MESSAGE-----\n')
-		throw("ERROR: missing .gpg footer");
+		errquit("missing .gpg footer");
 	ctext = ctext.substr(0, ctext.length-27)
 
 	/* split body, checksum, verify */
@@ -526,17 +633,17 @@ function decrypt()
 	}
 
 	if(idx_last_nl == ctext.length-1)
-		throw("ERROR: missing ascii armor checksum");
+		errquit("missing ascii armor checksum");
 
 	if(ctext[idx_last_nl+1] != '=')
-		throw("ERROR: malformed ascii armor checksum");
+		errquit("malformed ascii armor checksum");
 
 	var csum = ctext.substr(idx_last_nl+2)
 	csum = Array.from(atob(csum))
 	csum = csum.map(function(x) { return x.charCodeAt(0); })
 
 	if(csum.length != 3)
-		throw("ERROR: expected checksum to decode to 3 bytes");
+		errquit("expected checksum to decode to 3 bytes");
 
 	csum = (csum[0]<<16) | (csum[1]<<8) | csum[2];
 	console.log("csum given: " + csum.toString(16))
@@ -549,35 +656,98 @@ function decrypt()
 	var csum_calc = crc24(ctext)
 	console.log("csum calculated: " + csum_calc.toString(16))
 	if(csum != csum_calc)
-		throw("ERROR: checksum mismatch")
+		errquit("checksum mismatch")
 
 	/* extract, check pkt3 */
 	var pkt_info = read_pkt(ctext)
 	ctext = ctext.slice(pkt_info['header'].length + pkt_info['body'].length)
 
 	if(pkt_info['type'] != 3)
-		throw("ERROR: expected gpg packet 3 (encrypted session key params)")
+		errquit("expected gpg packet 3 (encrypted session key params)")
 
 	if(pkt_info['body'][0] != 4)
-		throw("ERROR: support only for pkt3 version 4")
+		errquit("support only for pkt3 version 4")
 	if(pkt_info['body'][1] != 3)
-		throw("ERROR: support only for pkt3 block algo 3 (CAST5)")
+		errquit("support only for pkt3 block algo 3 (CAST5)")
 	if(pkt_info['body'][2] != 3)
-		throw("ERROR: support only for pkt3 s2k algo 3 (iterated+salted)")
+		errquit("support only for pkt3 s2k algo 3 (iterated+salted)")
 	if(pkt_info['body'][3] != 2)
-		throw("ERROR: support only for pkt3 hash id 2 (sha1)")
+		errquit("support only for pkt3 hash id 2 (sha1)")
 
 	if(pkt_info['length'] - pkt_info['header'].length != 13)
-		throw("ERROR: expected len(pkt3) == 13")
+		errquit("expected len(pkt3) == 13")
 
-	var salt = pkt_info['body'].slice(5, 5+9)
+	var salt = pkt_info['body'].slice(4, 4+8)
+	console.debug('salt: ' + bytes_pretty(salt))
 
 	if(pkt_info['body'][12] != 0x60)
-		throw("ERROR: support only for pkt3 s2k iterations id 60 (65536)")
+		errquit("support only for pkt3 s2k iterations id 60 (65536)")
 
-	/* process packet 3 */
+	/* extract, check packet 9 */
+	pkt_info = read_pkt(ctext)
+	if(pkt_info['type'] != 9)
+		errquit("expected gpg packet 9 (symm. encrypted data)")
 
-	console.log("no way")	
+	ctext = pkt_info['body']
+
+	/* derive key */
+	var key = s2k(passphrase, salt, 2, 65536, 16)
+	console.debug('CAST5 key: ' + bytes_pretty(key))
+
+	/* decrypt */
+	var c5 = new OpenpgpSymencCast5()
+	c5.setKey(key)
+
+	var FR = [0,0,0,0,0,0,0,0]
+	var FRE = c5.encrypt(FR)
+	var prefix = array_xor(ctext.slice(0,8), FRE)
+	console.debug('prefix: ' + bytes_pretty(prefix))
+
+	FR = ctext.slice(0,8)
+	FRE = c5.encrypt(FR, key)
+	check = array_xor(ctext.slice(8,8+2), FRE.slice(0,2))
+	if(check[0] != prefix[6] || check[1] != prefix[7])
+		errquit("key check failed (likely wrong passphrase)")
+
+	FR = ctext.slice(2,2+8)
+	ctext = ctext.slice(10)
+
+	var ptext = []
+	while(ctext.length) {
+		FRE = c5.encrypt(FR, key)
+
+		var x = ctext.slice(0, 8)
+		ctext = ctext.slice(8)
+
+		var y = array_xor(x, FRE)
+		ptext = ptext.concat(y)
+
+		FR = x
+	}
+
+	console.log('ptext: ' + ptext)
+	console.log('ptext: ' + bytes_pretty(ptext))
+
+	/* treat the plaintext as a pkt 11 */
+	pkt_info = read_pkt(ptext)
+	if(pkt_info['type'] != 11)
+		errquit("expected gpg packet 11 (literal data)")
+
+	var pkt11 = pkt_info['body']
+	console.log('pkt11: ' + bytes_pretty(pkt11))
+	if(pkt11[0] != 0x62)
+		errquit("expected to decrypt binary data")
+	if(array_cmp(pkt11.slice(1,1+10), [0x09, 0x70, 0x74, 0x65, 0x78, 0x74, 0x2e, 0x74, 0x78, 0x74]))
+		errquit("expected to decrypt dummy filename ptext.txt")
+	if(array_cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
+		errquit("expected to decrypt dummy date 00000000")
+	msg = pkt11.slice(15)
+
+	console.log("msg: " + msg)
+
+	elem_plaintext.value = ascii_encode(msg)
+
+	mode_activate('decrypted')
 }
 
 function encrypt()
@@ -585,20 +755,17 @@ function encrypt()
 	/* 1) Select a salt S and an iteration count c */
 	salt = crypt_gen_random(8)
 	console.debug("salt: " + bytes_pretty(salt));
-
-	var elem_pt = document.getElementsByName("plaintext")[0]
-	var elem_pw = document.getElementsByName("password")[0]
 	
 	/* packet 11 is Literal Data Packet (holding the plaintext) */
-	var ptext = ascii_decode(elem_pt.value)
-	//var ptext = str_to_uni16(elem_pt.value)
+	var ptext = ascii_decode(elem_plaintext.value)
+	//var ptext = str_to_uni16(elem_plaintext.value)
 	console.debug("ptext: " + bytes_pretty(ptext))
 	var pkt11 = create_pkt11(ptext);
 	console.debug("pkt11: " + bytes_pretty(pkt11))
 
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
-	var pass_bytes = ascii_decode(elem_pw.value)
+	var pass_bytes = ascii_decode(elem_password.value)
 	console.debug("pass: " + bytes_pretty(pass_bytes))
 	pkt9 = create_pkt9(pkt11, pass_bytes, salt)
 	console.debug("pkt9: " + bytes_pretty(pkt9))
@@ -632,19 +799,28 @@ function encrypt()
 	output += '\n='
 	output += csum
 	output += '\n-----END PGP MESSAGE-----\n'
-	console.debug(output)
 
-	fname = ajax_file('backend.py', output)
+	elem_ciphertext.value = output
+
+	mode_activate('staging')
+}
+
+function host()
+{
+	ctext = elem_ciphertext.value
+
+	if(ctext == '')
+		errquit("ciphertext is empty")
+
+	fname = ajax_file('backend.py', ctext)
 	fname = fname.trim()
 	if(fname.substr(fname.length-4) != ".gpg")
-		throw("ERROR: backend generating file name");
+		errquit("backend generating file name");
 	adj_adj_anim = fname.substr(0,fname.length-4)
 
 	/* update gui stuff */
-	elem_result.children.url_share.innerText = 'http://cryptopaste.com/' + adj_adj_anim
-	elem_result.children.url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
-	elem_result.children.url_save.innerText = 'http://cryptopaste.com/save?' + adj_adj_anim
+	elem_url_share.innerText = 'http://cryptopaste.com/' + adj_adj_anim
+	elem_url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
 
-	elem_new_paste.style.display = 'none'
-	elem_result.style.display = ''
+	mode_activate('hosted')
 }
