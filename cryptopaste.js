@@ -275,13 +275,15 @@ function ascii_encode(array)
 /* converts [0xDE, 0xAD, 0xBE, 0xEF] to "DEADBEEF" */
 function bytes_pretty(bytes)
 {
-	var result = ''
-
-	for(var i=0; i < bytes.length; ++i) {
-		result += sprintf('%02X', bytes[i])
-	}
-
-	return result
+	return bytes.map(
+		function(x) {
+			var t = x.toString(16)
+			if (x<16)
+				return '0'+t;
+			else
+				return t;
+		}
+	).join('')
 }
 
 function crypt_gen_random(len)
