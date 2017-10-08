@@ -1,6 +1,9 @@
+<!DOCTYPE html>
+
 <html>
 
 <head>
+ <meta charset="UTF-8">
  <style type="text/css">
   body
   {
@@ -52,7 +55,6 @@
 
 
 <script src="sha1.js"></script>
-<script src="sha1_suppl.js"></script>
 <script src="cast5.js"></script>
 <script src="cryptopaste.js"></script>
 
@@ -69,13 +71,12 @@
 <textarea id="ciphertext"
        class="paste_area"
  placeholder="(your encrypted text will go here)"
-       style="display:none">
-</textarea>
+       style="display:none"><!-- CIPHERTEXT --></textarea>
 
-<textarea id="password"
+<textarea id="passphrase"
        class="paste_area"
        style="height: 32px; display:none"
- placeholder="(password)">
+ placeholder="(passphrase)">
 </textarea>
 
 <input type="button"
@@ -83,14 +84,14 @@
       class="fsSubmitButton"
       value="Decrypt"
       style="display:none"
-    onClick="decrypt()"/>
+    onClick="btn_decrypt()"/>
 
 <input type="button"
          id="encrypt_btn"
       class="fsSubmitButton"
       value="Encrypt*"
       style="display:none"
-    onClick="encrypt()"/>
+    onClick="btn_encrypt()"/>
 
 <p id="encrypt_note"
  style="display:none">
@@ -102,14 +103,14 @@
       class="fsSubmitButton"
       value="Host Ciphertext"
       style="display:none"
-    onClick="host()"/>
+    onClick="btn_host()"/>
 
 <input type="button"
          id="local_btn"
       class="fsSubmitButton"
       value="Save Self-Decrypting Document"
       style="display:none"
-    onClick="encrypt()"/>
+    onClick="btn_save_sdd()"/>
 
 <p id="url_share_info">
   Use this link to share your protected data with others

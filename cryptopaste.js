@@ -27,7 +27,7 @@ var elem_mode
 
 var elem_plaintext
 var elem_ciphertext
-var elem_password
+var elem_passphrase
 
 var elem_decrypt_btn
 var elem_encrypt_btn
@@ -43,14 +43,14 @@ var elem_url_raw
 /******************************************************************************
 	FUNCTIONS
 ******************************************************************************/
-function cryptopaste_init()
+function set_globals()
 {
 	/* collect important elements */
 	elem_mode = document.getElementById('mode')
 
 	elem_plaintext = document.getElementById('plaintext')
 	elem_ciphertext = document.getElementById('ciphertext')
-	elem_password = document.getElementById('password')
+	elem_passphrase = document.getElementById('passphrase')
 
 	elem_decrypt_btn = document.getElementById('decrypt_btn')
 	elem_encrypt_btn = document.getElementById('encrypt_btn')
@@ -62,16 +62,26 @@ function cryptopaste_init()
 
 	elem_url_raw_info = document.getElementById('url_raw_info')
 	elem_url_raw = document.getElementById('url_raw')
+}
 
-	/* decide what mode we're in, toggling relevant elements */
-	if(window.location.pathname == '/') {
-		if(elem_ciphertext.value == '')
-			mode = 'encrypt'
-		else
-			mode = 'decrypt'
+function cryptopaste_init()
+{
+	set_globals()
+
+	var pathname = window.location.pathname
+	if(pathname[0] == '/')
+		pathname = pathname.substr(1)
+	
+	/* if nothing is in the pathname, eg: www.cryptopaste.com, then go into
+		normal encrypt mode */
+	if(pathname == '') {
+		mode = 'encrypt'
 	}
-	else {
-		var adj_adj_animal = window.location.pathname
+	/* if the pathname is AdjAdjAnimal, seek the .gpg from backend and go into
+		decrypt mode */
+	else 
+	if(/^[A-Z][a-z]+[A-Z][a-z]+[A-Z][a-z]+$/.test(pathname)) {
+		var adj_adj_animal = pathname
 		if(adj_adj_animal[0] == '/')
 			adj_adj_animal = adj_adj_animal.substr(1)
 		console.debug("adj_adj_animal: " + adj_adj_animal)
@@ -87,6 +97,15 @@ function cryptopaste_init()
 
 		mode = 'decrypt'
 	}
+	/* if we are the 404 handler for a missing .gpg file, pop up an error */
+	else
+	if(/^[A-Z][a-z]+[A-Z][a-z]+[A-Z][a-z]+\.gpg$/.test(pathname)) {
+		errquit('nonexistent paste: ' + pathname + ' (expired?)')
+	}
+	/* else */
+	else {
+		errquit('don\'t know how to handle pathname: ' + pathname)
+	}
 
 	mode_activate(mode);
 }
@@ -99,7 +118,7 @@ function mode_activate(mode)
 	/* hide everything */
 	elem_plaintext.style.display = 'none'
 	elem_ciphertext.style.display = 'none'
-	elem_password.style.display = 'none'
+	elem_passphrase.style.display = 'none'
 
 	elem_encrypt_btn.style.display = 'none'
 	elem_decrypt_btn.style.display = 'none'
@@ -115,7 +134,7 @@ function mode_activate(mode)
 	if(mode == 'encrypt') {
 		elem_mode.innerText = "Encrypt"
 		elem_plaintext.style.display = ''
-		elem_password.style.display = ''
+		elem_passphrase.style.display = ''
 		elem_encrypt_btn.style.display = ''
 	}
 	else
@@ -129,7 +148,7 @@ function mode_activate(mode)
 	if(mode == 'decrypt') {
 		elem_mode.innerText = "Decrypt"
 		elem_ciphertext.style.display = ''
-		elem_password.style.display = ''
+		elem_passphrase.style.display = ''
 		elem_decrypt_btn.style.display = ''
 	}
 	else
@@ -158,7 +177,12 @@ function ajax_get(url)
 	xmlhttp.open("GET", url, false)
 	xmlhttp.send()
 	var resp = xmlhttp.responseText
-	console.log("AJAX: " + resp)
+
+	if(resp.length > 16)
+		console.log("AJAX: " + resp.substr(0,16) + '...')
+	else
+		console.log("AJAX: " + resp)
+
 	return resp
 }
 
@@ -183,7 +207,12 @@ function ajax_post(url, query) {
 	//xmlhttp.setRequestHeader('Connection', 'close')
 	xmlhttp.send(query)
 	var resp = xmlhttp.responseText
-	console.log("AJAX RESP: " + resp)
+
+	if(resp.length > 16)
+		console.log("AJAX: " + resp.substr(0,16) + '...')
+	else
+		console.log("AJAX: " + resp)
+
 	if(resp.search("A problem occurred in a Python script.") >= 0) {
 		document.write(resp);
 		errquit("backend error: python script");
@@ -198,14 +227,6 @@ function ajax_post(url, query) {
 function ajax_file(url, data_string) {
 	query = 'op=upload&fdata='+encodeURIComponent(data_string)
 	return ajax_post(url, query)
-}
-
-function hide_elem(elem) {
-	elem.style.display = 'none'
-}
-
-function unhide_elem(elem) {
-	elem.style.display = 'block'
 }
 
 /******************************************************************************
@@ -605,14 +626,68 @@ function crc24(bytes)
 	return crc & 0xFFFFFF;
 }
 
+/* input:
+	ptext: plaintext (array of byte values)
+	pword: passphrase (array of byte value)
+*/
+function encrypt(ptext, pword)
+{
+	/* 1) Select a salt S and an iteration count c */
+	salt = crypt_gen_random(8)
+	console.debug("salt: " + bytes_pretty(salt));
+	
+	/* packet 11 is Literal Data Packet (holding the plaintext) */
+	console.debug("ptext: " + bytes_pretty(ptext))
+	var pkt11 = create_pkt11(ptext);
+	console.debug("pkt11: " + bytes_pretty(pkt11))
+
+	/* packet 9 is Symmetrically Encrypted Data Packet
+		(encapsulating (encrypted) the packet 9) */
+	console.debug("pass: " + bytes_pretty(pword))
+	pkt9 = create_pkt9(pkt11, pword, salt)
+	console.debug("pkt9: " + bytes_pretty(pkt9))
+
+	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
+	pkt3 = create_pkt3(salt)
+	console.debug("pkt3: " + bytes_pretty(pkt3))
+
+	/* convert packet 3 and packet 9 to a string, eg:
+		[0xDE, 0xAD, 0xBE, 0xEF] -> '\xDE\xAD\xBE\xEF' */
+	data = pkt3.concat(pkt9)
+	console.debug("data: " + bytes_pretty(data))
+	tmp = bytes_to_string(data)
+
+	/* convert to base64, eg:
+		'\xDE\xAD\xBE\xEF' -> '3q2+7w==' */
+	tmp = btoa(tmp)
+	console.debug("b64(data): " + tmp)
+
+	/* checksum */
+	csum = crc24(data)
+	console.debug("csum: " + csum.toString(16))
+	csum = uint32_to_bytes(csum, 'big')
+	console.debug("csum bytes: " + bytes_pretty(csum))
+	csum = bytes_to_string(csum.slice(1,4))
+	csum = btoa(csum)
+	console.debug("csum b64: " + csum)
+
+	output = '-----BEGIN PGP MESSAGE-----\n\n'
+	output += tmp
+	output += '\n='
+	output += csum
+	output += '\n-----END PGP MESSAGE-----\n'
+
+	return output
+}
+
 /******************************************************************************
 	FORM INTERACTION, CALLBACKS
 ******************************************************************************/
 
-function decrypt()
+function btn_decrypt()
 {
-	var ctext = document.getElementById("ciphertext").value
-	var passphrase = document.getElementById("password").value
+	var ctext = elem_ciphertext.value
+	var passphrase = elem_passphrase.value
 
 	if(!passphrase.length)
 		errquit('missing passphrase')
@@ -752,62 +827,41 @@ function decrypt()
 	mode_activate('decrypted')
 }
 
-function encrypt()
+function btn_encrypt()
 {
-	/* 1) Select a salt S and an iteration count c */
-	salt = crypt_gen_random(8)
-	console.debug("salt: " + bytes_pretty(salt));
-	
-	/* packet 11 is Literal Data Packet (holding the plaintext) */
-	var ptext = ascii_decode(elem_plaintext.value)
-	//var ptext = str_to_uni16(elem_plaintext.value)
-	console.debug("ptext: " + bytes_pretty(ptext))
-	var pkt11 = create_pkt11(ptext);
-	console.debug("pkt11: " + bytes_pretty(pkt11))
+	var plaintext = ascii_decode(elem_plaintext.value)
+	//var plaintext = str_to_uni16(elem_plaintext.value)
+	var pass_bytes = ascii_decode(elem_passphrase.value)
 
-	/* packet 9 is Symmetrically Encrypted Data Packet
-		(encapsulating (encrypted) the packet 9) */
-	var pass_bytes = ascii_decode(elem_password.value)
-	console.debug("pass: " + bytes_pretty(pass_bytes))
-	pkt9 = create_pkt9(pkt11, pass_bytes, salt)
-	console.debug("pkt9: " + bytes_pretty(pkt9))
+	output = encrypt(plaintext, pass_bytes)
 
-	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
-	pkt3 = create_pkt3(salt)
-	console.debug("pkt3: " + bytes_pretty(pkt3))
-
-	/* convert packet 3 and packet 9 to a string, eg:
-		[0xDE, 0xAD, 0xBE, 0xEF] -> '\xDE\xAD\xBE\xEF' */
-	data = pkt3.concat(pkt9)
-	console.debug("data: " + bytes_pretty(data))
-	tmp = bytes_to_string(data)
-
-	/* convert to base64, eg:
-		'\xDE\xAD\xBE\xEF' -> '3q2+7w==' */
-	tmp = btoa(tmp)
-	console.debug("b64(data): " + tmp)
-
-	/* checksum */
-	csum = crc24(data)
-	console.debug("csum: " + csum.toString(16))
-	csum = uint32_to_bytes(csum, 'big')
-	console.debug("csum bytes: " + bytes_pretty(csum))
-	csum = bytes_to_string(csum.slice(1,4))
-	csum = btoa(csum)
-	console.debug("csum b64: " + csum)
-
-	output = '-----BEGIN PGP MESSAGE-----\n\n'
-	output += tmp
-	output += '\n='
-	output += csum
-	output += '\n-----END PGP MESSAGE-----\n'
+	/* clear plaintext, password */
+	elem_plaintext.value = ''
+	elem_passphrase.value = ''
 
 	elem_ciphertext.value = output
-
 	mode_activate('staging')
 }
 
-function host()
+function btn_save_sdd()
+{
+	var sdd = ajax_get('sdd.html')
+	sdd = sdd.replace('<!-- CIPHERTEXT -->', elem_ciphertext.value)
+
+	/* temporary anchor tag */
+	var elem = document.createElement('a');
+	elem.innerText = 'Download SDD'
+	elem.href = 'data:text/plain;base64,' + btoa(sdd)
+	elem.download = 'encrypted.html'
+	//elem.style.display = 'none'
+
+	/* fake click it */
+	document.body.appendChild(elem)
+	elem.click()
+	//document.body.removeChild(elem)
+}
+
+function btn_host()
 {
 	ctext = elem_ciphertext.value
 
