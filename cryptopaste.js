@@ -296,7 +296,14 @@ function ascii_encode(array)
 /* converts [0xDE, 0xAD, 0xBE, 0xEF] to "DEADBEEF" */
 function bytes_pretty(bytes)
 {
-	return bytes.map(
+	/* map doesn't work right on UInt8Array, eg:
+		var foo = Uint8Array([154])
+		foo.map(function(x) { return x.toString(16) })
+		return a Uint8Array :/
+	*/
+	var tmp = Array.from(bytes)
+
+	return tmp.map(
 		function(x) {
 			var t = x.toString(16)
 			if (x<16)
@@ -443,6 +450,18 @@ function u8_array_concat(a, b)
 	c.set(a);
 	c.set(b, a.length)
 	return c
+}
+
+function u8_memcpy(a, aOffs, b, bOffs, len)
+{
+	/* assume .set() is optimized, use it when possible */
+	if(bOffs == 0) {
+		a.set(b, aOffs)
+		return
+	}
+	
+	for(var i=0; i<len; ++i)
+		a[aOffs+i] = b[bOffs+i]
 }
 
 function stricmp(a, b)
@@ -603,6 +622,7 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 	else
 		errQuit("support only for hash id 2 (SHA1)");
 
+	assertType(digest, 'Uint8Array')
 	return digest.slice(0, key_len)
 }
 
@@ -941,4 +961,56 @@ function btn_host()
 	elem_url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
 
 	mode_activate('hosted')
+}
+
+/******************************************************************************
+ TEST
+******************************************************************************/
+function test()
+{
+	console.log("test() running!")
+
+	var c5, key, ptext, ctext, out
+
+	c5 = new OpenpgpSymencCast5()
+
+	key = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+	ptext = ascii_decode('\x01\x23\x45\x67\x89\xAB\xCD\xEF')
+	ctext = ascii_decode('\x23\x8B\x4F\xE5\x84\x7E\x44\xB2')
+
+	console.log('key: ' + bytes_pretty(key))
+	console.log('ptext: ' + bytes_pretty(ptext))
+	console.log('ctext: ' + bytes_pretty(ctext))
+
+	c5.setKey(key)
+	out = c5.encrypt(ptext)
+	console.log('got out:' + bytes_pretty(out))
+	if(u8_array_cmp(out, ctext) != 0) {
+		throw('ERROR: c5')
+	}
+
+	var t0 = performance.now()
+	for(var i=0; i<1000000; ++i) {
+		out = c5.encrypt(ptext)
+	}
+	var t1 = performance.now()
+	console.log('stresser took ' + (t1-t0) + 'ms')
+
+//	console.log("maintenance tests, ohoh yea")
+//	a, b;
+//	var aL = new Uint8Array()
+//	var aR = new Uint8Array()
+//	var a = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+//	var b = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+//	for(var i=0; i<1000000; ++i) {
+//		u8_memcpy(aL, 0, a, 0, 8)
+//		u8_memcpy(aR, 0, a, 8, 8)
+//		aL = c5.encrypt(aL, b)
+//		aR = c5.encrypt(aR, b)
+//		u8_memcpy(a
+//
+//		u8
+//	}
+
+	console.log('success!')
 }
