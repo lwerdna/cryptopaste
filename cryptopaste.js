@@ -301,7 +301,12 @@ function bytes_pretty(bytes)
 		foo.map(function(x) { return x.toString(16) })
 		return a Uint8Array :/
 	*/
+	var suffix = ''
 	var tmp = Array.from(bytes)
+	if(tmp.length > 16) {
+		tmp = tmp.slice(0,16)
+		suffix = '...'
+	}
 
 	return tmp.map(
 		function(x) {
@@ -311,7 +316,7 @@ function bytes_pretty(bytes)
 			else
 				return t;
 		}
-	).join('')
+	).join('') + suffix
 }
 
 function crypt_gen_random(len)
@@ -409,7 +414,7 @@ function uint16_to_bytes(x, endian)
 		x >>>= 8
 	}
 
-	return Uint8Array(rv)
+	return new Uint8Array(rv)
 }
 
 /* converts 'QUFBQQo=' to [0x41, 0x41, 0x41, 0x41] */
@@ -418,7 +423,32 @@ function b64_to_bytes(str)
 	return ascii_decode(atob(str))
 }
 
-function u8_array_cmp(a, b)
+/* converts [0x41, 0x41, 0x41, 0x41] to 'QUFBQQo='
+	and adds appropriate newlines */
+function b64_encode(big)
+{
+	/* 6.3. Encoding Binary in Radix-64
+		The encoded output stream must be represented in lines of no more
+		than 76 characters each */
+	big = btoa(big)
+	if(big.len < 76)
+		return big
+
+	/* convert string to array, 'AAAA' -> ['A', 'A', 'A', 'A'] */
+	big = Array.from(big)
+	/* run an accumulator over the whole thing, returning nothing except at
+		indices multiple of 76, where we grab a chunk and save it */
+	big = big.reduce(
+		function(sum,value,idx,arr) {
+			return idx%76 ? sum : sum.concat(arr.slice(idx,idx+76).join(''))
+		},
+		[] /* initial value */
+	)
+
+	return big.join('\n')
+}
+
+function u8cmp(a, b)
 {
 	if (a.length != b.length) {
 		return -1
@@ -433,35 +463,39 @@ function u8_array_cmp(a, b)
 	return 0
 }
 
-function u8_array_xor(a, b)
+/* c = a^b */
+function u8xor(c,cOffs, a,aOffs, b,bOffs, len)
 {
-	var min = Math.min(a.length, b.length)
-	var result = new Uint8Array(min)
-
-	for(var i=0; i<min; ++i)
-		result[i] = a[i] ^ b[i];
-
-	return result
+	for(var i=0; i<len; ++i)
+		c[cOffs+i] = a[aOffs+i] ^ b[bOffs+i];
 }
 
-function u8_array_concat(a, b)
+function arr_move(arr, dst, src, len)
 {
-	var c = new Uint8Array(a.length + b.length);
-	c.set(a);
-	c.set(b, a.length)
-	return c
+	for(var i=dst; i<len; ++i)
+		arr[dst+(len-1)-i] = arr[src+(len-1)-i]
 }
 
-function u8_memcpy(a, aOffs, b, bOffs, len)
+/* a = b */
+function u8memcpy(a, aOffs, b, bOffs, len)
 {
 	/* assume .set() is optimized, use it when possible */
-	if(bOffs == 0) {
+	if(bOffs == 0 && b.length == len) {
 		a.set(b, aOffs)
 		return
 	}
 	
 	for(var i=0; i<len; ++i)
 		a[aOffs+i] = b[bOffs+i]
+}
+
+/* return new concatenation of a, b */
+function u8concat(a, b)
+{
+	var c = new Uint8Array(a.length + b.length);
+	c.set(a);
+	c.set(b, a.length)
+	return c
 }
 
 function stricmp(a, b)
@@ -523,14 +557,18 @@ function create_pkt(body, tagid)
 		tag_byte |= 1								/* length type = 1 (2 byte length) */
 		length_bytes = uint16_to_bytes(body.length, "big")
 	}
-	else if(body.length < 1048576) {
+	else if(body.length < 16777216) {
 		tag_byte |= 2								/* length type = 2 (4 byte length) */
 		length_bytes = uint32_to_bytes(body.length, "big")
 	}
+	else {
+		errQuit('not expecting more than 16mb')
+	}
 
 	var pkt = new Uint8Array([tag_byte])			/* pkt = tag byte */
-	pkt = u8_array_concat(pkt, length_bytes)		/* pkt += length bytes (completing header) */
-	pkt = u8_array_concat(pkt, body)				/* pkt += body */
+	console.log('length_bytes: ' + bytes_pretty(length_bytes))
+	pkt = u8concat(pkt, length_bytes)				/* pkt += length bytes (completing header) */
+	pkt = u8concat(pkt, body)						/* pkt += body */
 
 	return pkt
 }
@@ -562,7 +600,7 @@ function read_pkt(data)
 	}
 	else if(len_type == 2) {
 		body_len = (data[1]<<24) | (data[2]<<16) | (data[3]<<8) | data[4]
-		hdr_len = 4
+		hdr_len = 5
 	}
 	else {
 		errQuit("indeterminate packet length unsupported")
@@ -610,10 +648,10 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 	assertType(salt, 'Uint8Array')
 	assertType(passphrase, 'Uint8Array')
 
-	var msg = u8_array_concat(salt, passphrase)
+	var msg = u8concat(salt, passphrase)
 	
 	while(msg.length < count)
-		msg = u8_array_concat(msg, msg)
+		msg = u8concat(msg, msg)
 	msg = msg.slice(0,count)
 
 	var digest
@@ -633,32 +671,47 @@ function create_pkt9(ptext, passphrase, salt)
 	assertType(salt, 'Uint8Array')
 
 	var key = s2k(passphrase, salt, 2, 65536, 16)
-	console.debug('CAST5 key: ' + bytes_pretty(key))
+	console.debug('CAST5            key: ' + bytes_pretty(key))
 
 	var c5 = new OpenpgpSymencCast5()
 	c5.setKey(key)
 
 	/* encrypt with OpenPGP CFB Mode (see 13.9) */
 	var prefix = crypt_gen_random(8)
-	console.debug('CAST5 prefix: ' + bytes_pretty(prefix))
+	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
 
-	var FR = [0,0,0,0,0,0,0,0]
+	var ctext = new Uint8Array(10 + ptext.length)
+	var FR = new Uint8Array([0,0,0,0,0,0,0,0])
 	var FRE = c5.encrypt(FR)
-	console.debug('CAST5 first output: ' + bytes_pretty(FRE))
-	var ctext = u8_array_xor(prefix, FRE)
-	console.debug('CAST5 first ctext: ' + bytes_pretty(ctext))
+	console.debug('CAST5    initial FRE: ' + bytes_pretty(FRE))
 
-	FR = ctext
-	FRE = c5.encrypt(FR, key)
-	ctext = u8_array_concat(ctext, u8_array_xor(prefix.slice(6,8), FRE.slice(0,2)))
+	u8xor(ctext,0, prefix,0, FRE,0, 8)		/* ctext[0,7] */
+	console.debug('CAST5   prefix ctext: ' + bytes_pretty(ctext))
 
-	FR = ctext.slice(2,10)
-	while(ptext.length) {
-		FRE = c5.encrypt(FR, key)
-		FR = u8_array_xor(ptext.slice(0,8), FRE)
-		ctext = u8_array_concat(ctext, FR)
-		ptext = ptext.slice(8)
-		//console.log("ptext length is now: " + ptext.length)
+	u8memcpy(FR,0, ctext,0, 8)				/* FR = ctext[0..7] */
+	FRE = c5.encrypt(FR, key)				/* FRE = cast5(FR, key) */
+
+	u8xor(ctext,8, prefix,6, FRE,0, 2)		/* ctext[8,9] = check */
+	u8memcpy(FR,0, ctext,2, 8)				/* FR = ctext[2..9] */
+	console.debug('CAST5 ctext w/ check: ' + bytes_pretty(ctext))
+
+	var dstI = 10
+	var srcI = 0
+	var remaining = ptext.length
+	while(remaining > 0) {
+		FRE = c5.encrypt(FR, key)			/* FRE = cast5(FR, key) */
+		u8xor(FR,0, ptext,srcI, FRE,0, 8)	/* FR = ptext ^ FRE */
+
+		if(remaining >= 8)
+			u8memcpy(ctext,dstI, FR,0, 8)	/* ctext += FR */
+		else
+			u8memcpy(ctext,dstI, FR,0, remaining)
+	
+		//console.debug('CAST5   ctext update: ' + bytes_pretty(ctext))
+
+		dstI += 8
+		srcI += 8
+		remaining -= 8
 	}
 
 	return create_pkt(ctext, 9);
@@ -676,10 +729,8 @@ function create_pkt11(msg)
 	body[1] = fname.length							/* filename len */
 	body.set(ascii_decode(fname), 2)				/* filename */
 	body.set([0,0,0,0], 2 + fname.length)			/* date */
-	body = u8_array_concat(body, msg)				/* message */
+	body = u8concat(body, msg)				/* message */
 	
-	console.log('pkt11 body: ' + body)
-
 	return create_pkt(new Uint8Array(body), 11)
 }
 
@@ -706,6 +757,8 @@ function crc24(bytes)
 /* input:
 	ptext: plaintext (array of byte values)
 	pword: passphrase (array of byte value)
+   output:
+	result (string like '-----BEGIN PGP MESSAGE-----....')
 */
 function encrypt(ptext, pword)
 {
@@ -719,28 +772,28 @@ function encrypt(ptext, pword)
 	/* packet 11 is Literal Data Packet (holding the plaintext) */
 	console.debug("ptext: " + bytes_pretty(ptext))
 	var pkt11 = create_pkt11(ptext);
-	console.debug("pkt11: " + bytes_pretty(pkt11))
+	console.debug("pkt11 (full, plain): " + bytes_pretty(pkt11))
 
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
 	console.debug("pass: " + bytes_pretty(pword))
 	pkt9 = create_pkt9(pkt11, pword, salt)
-	console.debug("pkt9: " + bytes_pretty(pkt9))
+	console.debug("pkt9 (full): " + bytes_pretty(pkt9))
 
 	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
 	pkt3 = create_pkt3(salt)
-	console.debug("pkt3: " + bytes_pretty(pkt3))
+	console.debug("pkt3 (full): " + bytes_pretty(pkt3))
 
 	/* convert packet 3 and packet 9 to a string, eg:
 		[0xDE, 0xAD, 0xBE, 0xEF] -> '\xDE\xAD\xBE\xEF' */
-	data = u8_array_concat(pkt3, pkt9)
+	data = u8concat(pkt3, pkt9)
 	console.debug("data: " + bytes_pretty(data))
 	tmp = bytes_to_string(data)
 
 	/* convert to base64, eg:
 		'\xDE\xAD\xBE\xEF' -> '3q2+7w==' */
-	tmp = btoa(tmp)
-	console.debug("b64(data): " + tmp)
+	tmp = b64_encode(tmp)
+	//console.debug("b64(data): " + tmp)
 
 	/* checksum */
 	csum = crc24(data)
@@ -803,7 +856,6 @@ function btn_decrypt()
 	console.log("csum given: " + csum.toString(16))
 
 	ctext = b64_to_bytes(ctext.substr(0, idx_last_nl))
-	console.debug("ctext: " + bytes_pretty(ctext))
 
 	var csum_calc = crc24(ctext)
 	console.log("csum calculated: " + csum_calc.toString(16))
@@ -840,12 +892,13 @@ function btn_decrypt()
 	pkt_info = read_pkt(ctext)
 	if(pkt_info['type'] != 9)
 		errQuit("expected gpg packet 9 (symm. encrypted data)")
-
 	ctext = pkt_info['body']
+
+	console.debug('CAST5  initial ctext: ' + bytes_pretty(ctext))
 
 	/* derive key */
 	var key = s2k(passphrase, salt, 2, 65536, 16)
-	console.debug('CAST5 key: ' + bytes_pretty(key))
+	console.debug('CAST5            key: ' + bytes_pretty(key))
 
 	/* decrypt */
 	var c5 = new OpenpgpSymencCast5()
@@ -853,29 +906,40 @@ function btn_decrypt()
 
 	var FR = new Uint8Array([0,0,0,0,0,0,0,0])
 	var FRE = c5.encrypt(FR)
-	var prefix = u8_array_xor(ctext.slice(0,8), FRE)
-	console.debug('prefix: ' + bytes_pretty(prefix))
+	console.debug('CAST5  FRE = encr(0): ' + bytes_pretty(FRE))
 
-	FR = ctext.slice(0,8)
-	FRE = c5.encrypt(FR, key)
-	check = u8_array_xor(ctext.slice(8,8+2), FRE.slice(0,2))
-	if(check[0] != prefix[6] || check[1] != prefix[7])
+	var prefix = new Uint8Array([0,0,0,0,0,0,0,0])
+	u8xor(prefix,0, ctext,0, FRE,0, 8)					/* prefix = ctext ^ FRE */
+	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
+
+	u8memcpy(FR,0, ctext,0, 8)							/* FR = ctext[0..7] */
+	FRE = c5.encrypt(FR, key)							/* FRE = cast5(FR, key) */
+
+	if((ctext[8]^FRE[0]) != prefix[6] || (ctext[9]^FRE[1]) != prefix[7])
 		errQuit("key check failed (likely wrong passphrase)")
 
-	FR = ctext.slice(2,2+8)
-	ctext = ctext.slice(10)
+	u8memcpy(FR,0, ctext,2, 8)							/* FR = ctext[2..9] */
 
-	var ptext = new Uint8Array([])
-	while(ctext.length) {
-		FRE = c5.encrypt(FR, key)
+	var ptext = new Uint8Array(ctext.length - 10)
+	console.debug('CAST5   ptext update: ' + bytes_pretty(ptext))
 
-		var x = ctext.slice(0, 8)
-		ctext = ctext.slice(8)
+	var dstI = 0
+	var srcI = 10
+	var remaining = ptext.length
+	while(remaining > 0) {
+		FRE = c5.encrypt(FR, key)						/* FRE = cast5(FR, key) */
+		u8memcpy(FR,0, ctext,srcI, 8)					/* FR = ctext */
 
-		var y = u8_array_xor(x, FRE)
-		ptext = u8_array_concat(ptext, y)
+		if(remaining >= 8)								/* ptext += FRE^ctext */
+			u8xor(ptext,dstI, ctext,srcI, FRE,0, 8)
+		else
+			u8xor(ptext,dstI, ctext,srcI, FRE,0, remaining)
+		
+		//console.debug('CAST5   ptext update: ' + bytes_pretty(ptext))
 
-		FR = x
+		dstI += 8
+		srcI += 8
+		remaining -= 8
 	}
 
 	console.log('ptext: ' + bytes_pretty(ptext))
@@ -889,9 +953,9 @@ function btn_decrypt()
 	console.log('pkt11: ' + bytes_pretty(pkt11))
 	if(pkt11[0] != 0x62)
 		errQuit("expected to decrypt binary data")
-	if(u8_array_cmp(pkt11.slice(1,1+10), [0x09, 0x70, 0x74, 0x65, 0x78, 0x74, 0x2e, 0x74, 0x78, 0x74]))
+	if(u8cmp(pkt11.slice(1,1+10), [0x09, 0x70, 0x74, 0x65, 0x78, 0x74, 0x2e, 0x74, 0x78, 0x74]))
 		errQuit("expected to decrypt dummy filename ptext.txt")
-	if(u8_array_cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
+	if(u8cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
 		errQuit("expected to decrypt dummy date 00000000")
 	msg = pkt11.slice(15)
 
@@ -985,7 +1049,7 @@ function test()
 	c5.setKey(key)
 	out = c5.encrypt(ptext)
 	console.log('got out:' + bytes_pretty(out))
-	if(u8_array_cmp(out, ctext) != 0) {
+	if(u8cmp(out, ctext) != 0) {
 		throw('ERROR: c5')
 	}
 
@@ -1003,11 +1067,11 @@ function test()
 //	var a = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
 //	var b = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
 //	for(var i=0; i<1000000; ++i) {
-//		u8_memcpy(aL, 0, a, 0, 8)
-//		u8_memcpy(aR, 0, a, 8, 8)
+//		u8memcpy(aL, 0, a, 0, 8)
+//		u8memcpy(aR, 0, a, 8, 8)
 //		aL = c5.encrypt(aL, b)
 //		aR = c5.encrypt(aR, b)
-//		u8_memcpy(a
+//		u8memcpy(a
 //
 //		u8
 //	}
