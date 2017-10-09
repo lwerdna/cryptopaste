@@ -160,11 +160,11 @@ function SHA1(array)
     //var temp = cvt_hex(H0) + cvt_hex(H1) + cvt_hex(H2) + cvt_hex(H3) + cvt_hex(H4);
     //return temp.toLowerCase(); 
 
-    var temp = []
-    temp = temp.concat(uint32_to_bytes(H0, 'big'))
-    temp = temp.concat(uint32_to_bytes(H1, 'big'))
-    temp = temp.concat(uint32_to_bytes(H2, 'big'))
-    temp = temp.concat(uint32_to_bytes(H3, 'big'))
-    temp = temp.concat(uint32_to_bytes(H4, 'big'))
+    var temp = new Uint8Array(20)
+    temp.set(uint32_to_bytes(H0, 'big'))
+    temp.set(uint32_to_bytes(H1, 'big'), 4)
+    temp.set(uint32_to_bytes(H2, 'big'), 8)
+    temp.set(uint32_to_bytes(H3, 'big'), 12)
+    temp.set(uint32_to_bytes(H4, 'big'), 16)
     return temp
 }

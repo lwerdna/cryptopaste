@@ -100,11 +100,11 @@ function cryptopaste_init()
 	/* if we are the 404 handler for a missing .gpg file, pop up an error */
 	else
 	if(/^[A-Za-z]+\.gpg$/.test(pathname)) {
-		errquit('nonexistent paste: ' + pathname + ' (expired?)')
+		errQuit('nonexistent paste: ' + pathname + ' (expired?)')
 	}
 	/* else */
 	else {
-		errquit('don\'t know how to handle pathname: ' + pathname)
+		errQuit('don\'t know how to handle pathname: ' + pathname)
 	}
 
 	mode_activate(mode);
@@ -215,7 +215,7 @@ function ajax_post(url, query) {
 
 	if(resp.search("A problem occurred in a Python script.") >= 0) {
 		document.write(resp);
-		errquit("backend error: python script");
+		errQuit("backend error: python script");
 	}
 	return resp
 }
@@ -242,7 +242,7 @@ function str_to_uni16(input)
 		var cc = input.charCodeAt(i)
 
 		if(cc > 65536) {
-			errquit("char code is greater than 2-bytes!")
+			errQuit("char code is greater than 2-bytes!")
 		}
 
 		array.push(cc & 0xFF)
@@ -258,7 +258,7 @@ function uni16_to_str(array)
 	var result = ''
 
 	if(array.length % 2) {
-		errquit("array size not a multiple of 2 when decoding uni16")
+		errQuit("array size not a multiple of 2 when decoding uni16")
 	}
 
 	for(var i=0; i<array.length; i+=2) {
@@ -272,13 +272,13 @@ function uni16_to_str(array)
 /* converts "AAAA" to [0x41, 0x41, 0x41, 0x41] */
 function ascii_decode(input)
 {
-	array = []
+	var result = new Uint8Array(input.length)
 
 	for(var i=0; i<input.length; ++i) {
-		array.push(input.charCodeAt(i))
+		result[i] = input.charCodeAt(i)
 	}
 
-	return array
+	return result
 }
 
 /* converts [0x41, 0x41, 0x41, 0x41] to "AAAA" */
@@ -311,7 +311,7 @@ function crypt_gen_random(len)
 {
 	var arr = new Uint8Array(len)
 	window.crypto.getRandomValues(arr)
-	return Array.from(arr)
+	return arr
 }
 
 /* converts [0xDE, 0xAD, 0xBE, 0xEF] to "\xDE\xAD\xBE\xEF" */
@@ -379,7 +379,7 @@ function uint32_to_bytes(x, endian)
 		x >>>= 8
 	}
 
-	return rv
+	return new Uint8Array(rv)
 }
 
 /* converts 0xDEAD to [0xDE, 0xAD] */
@@ -402,10 +402,16 @@ function uint16_to_bytes(x, endian)
 		x >>>= 8
 	}
 
-	return rv
+	return Uint8Array(rv)
 }
 
-function array_cmp(a, b)
+/* converts 'QUFBQQo=' to [0x41, 0x41, 0x41, 0x41] */
+function b64_to_bytes(str)
+{
+	return ascii_decode(atob(str))
+}
+
+function u8_array_cmp(a, b)
 {
 	if (a.length != b.length) {
 		return -1
@@ -420,16 +426,23 @@ function array_cmp(a, b)
 	return 0
 }
 
-function array_xor(a, b)
+function u8_array_xor(a, b)
 {
-	var result = []
+	var min = Math.min(a.length, b.length)
+	var result = new Uint8Array(min)
 
-	min = Math.min(a.length, b.length)
-	for(var i=0; i < min; ++i) {
-		result = result.concat(a[i] ^ b[i]);
-	}
+	for(var i=0; i<min; ++i)
+		result[i] = a[i] ^ b[i];
 
 	return result
+}
+
+function u8_array_concat(a, b)
+{
+	var c = new Uint8Array(a.length + b.length);
+	c.set(a);
+	c.set(b, a.length)
+	return c
 }
 
 function stricmp(a, b)
@@ -445,25 +458,47 @@ function stricmp(a, b)
 	return -1;
 }
 
-function errquit(msg)
+function errQuit(msg)
 {
 	alert(msg)
 	throw('ERROR: ' + msg)
+}
+
+function assert(condition)
+{
+	if(!condition)
+		errQuit('assertion failed')
+}
+
+function assertType(inst, typeName)
+{
+	if(typeof(inst) == "object")
+		assert(inst.constructor.name == typeName)
+	else
+		assert(typeof(inst) == typeName)
 }
 
 /******************************************************************************
  OPENPGP FUNCTIONS
 ******************************************************************************/
 
+/* in:
+	body: Uint8Array
+    tagid: integer
+   out:
+	Uint8Array
+*/
 function create_pkt(body, tagid)
 {
-	tag_byte = 0x80
+	assertType(body, 'Uint8Array')
+
+	var tag_byte = 0x80
 	tag_byte |= (tagid << 2)
 
-	length_bytes = ''
+	var length_bytes
 	if(body.length < 256) {
 		tag_byte |= 0								/* length type = 0 (1 byte length) */
-		length_bytes = [body.length]
+		length_bytes = new Uint8Array([body.length])
 	}
 	else if(body.length < 65536) {
 		tag_byte |= 1								/* length type = 1 (2 byte length) */
@@ -474,21 +509,25 @@ function create_pkt(body, tagid)
 		length_bytes = uint32_to_bytes(body.length, "big")
 	}
 
-	pkt_hdr = [tag_byte].concat(length_bytes)		/* hdr = tag byte + length bytes */
+	var pkt = new Uint8Array([tag_byte])			/* pkt = tag byte */
+	pkt = u8_array_concat(pkt, length_bytes)		/* pkt += length bytes (completing header) */
+	pkt = u8_array_concat(pkt, body)				/* pkt += body */
 
-	return pkt_hdr.concat(body)						/* add hdr */
+	return pkt
 }
 
 function read_pkt(data)
 {
+	assertType(data, 'Uint8Array')
+	
 	var result
 	var tag_byte = data[0]
 
 	if(!(tag_byte & 0x80))
-		errquit("tag byte should have MSB set")
+		errQuit("tag byte should have MSB set")
 
 	if(tag_byte & 0x40)
-		errquit("new stream format unsupported")
+		errQuit("new stream format unsupported")
 
 	var hdr_len, body_len
 	var tag_val = (tag_byte & 0x2C) >>> 2
@@ -507,7 +546,7 @@ function read_pkt(data)
 		hdr_len = 4
 	}
 	else {
-		errquit("indeterminate packet length unsupported")
+		errQuit("indeterminate packet length unsupported")
 	}
 	
 	console.log("pkt     type: " + tag_val)
@@ -515,25 +554,27 @@ function read_pkt(data)
 	console.log("pkt body_len: " + body_len)
 
 	if(hdr_len + body_len > data.length)
-		errquit("packet is larger than available data")
+		errQuit("packet is larger than available data")
 	
-	body = data.slice(hdr_len, hdr_len + body_len)
+	var body = data.slice(hdr_len, hdr_len + body_len)
 
 	return {'type': tag_val,
 			'length': hdr_len + body_len,
 			'header': data.slice(0, hdr_len),
-			'body': data.slice(hdr_len, hdr_len + body_len)
+			'body': body
 		}
 }
 
 function create_pkt3(salt)
 {
-	body = [0x04]									/* version */
-	body = body.concat(0x03)						/* block algo: CAST5 */
-	body = body.concat(0x03)						/* s2k id: Iterated+Salted */
-	body = body.concat(0x02)						/* hash id: sha1 */
-	body = body.concat(salt)
-	body = body.concat(0x60)						/* count (decodes to 65536) */
+	assertType(salt, 'Uint8Array')
+	body = new Uint8Array(13)
+	body[0] = 0x04						/* version */
+	body[1] = 0x03						/* block algo: CAST5 */
+	body[2] = 0x03						/* s2k id: Iterated+Salted */
+	body[3] = 0x02						/* hash id: sha1 */
+	body.set(salt, 4)					/* salt */
+	body[12] = 0x60						/* count (decodes to 65536) */
 	return create_pkt(body, 3)
 }
 
@@ -547,23 +588,30 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 		passphrase = tmp
 	}
 
-	var msg = salt.concat(passphrase)
+	assertType(salt, 'Uint8Array')
+	assertType(passphrase, 'Uint8Array')
+
+	var msg = u8_array_concat(salt, passphrase)
 	
 	while(msg.length < count)
-		msg = msg.concat(msg)
+		msg = u8_array_concat(msg, msg)
 	msg = msg.slice(0,count)
 
 	var digest
 	if(hash_id == 2)
 		digest = SHA1(msg)							/* hash it */
 	else
-		errquit("support only for hash id 2 (SHA1)");
+		errQuit("support only for hash id 2 (SHA1)");
 
 	return digest.slice(0, key_len)
 }
 
 function create_pkt9(ptext, passphrase, salt)
 {
+	assertType(ptext, 'Uint8Array')
+	assertType(passphrase, 'Uint8Array')
+	assertType(salt, 'Uint8Array')
+
 	var key = s2k(passphrase, salt, 2, 65536, 16)
 	console.debug('CAST5 key: ' + bytes_pretty(key))
 
@@ -577,18 +625,18 @@ function create_pkt9(ptext, passphrase, salt)
 	var FR = [0,0,0,0,0,0,0,0]
 	var FRE = c5.encrypt(FR)
 	console.debug('CAST5 first output: ' + bytes_pretty(FRE))
-	var ctext = array_xor(prefix, FRE)
+	var ctext = u8_array_xor(prefix, FRE)
 	console.debug('CAST5 first ctext: ' + bytes_pretty(ctext))
 
 	FR = ctext
 	FRE = c5.encrypt(FR, key)
-	ctext = ctext.concat(array_xor(prefix.slice(6,8), FRE.slice(0,2)))
+	ctext = u8_array_concat(ctext, u8_array_xor(prefix.slice(6,8), FRE.slice(0,2)))
 
 	FR = ctext.slice(2,10)
 	while(ptext.length) {
 		FRE = c5.encrypt(FR, key)
-		FR = array_xor(ptext.slice(0,8), FRE)
-		ctext = ctext.concat(FR)
+		FR = u8_array_xor(ptext.slice(0,8), FRE)
+		ctext = u8_array_concat(ctext, FR)
 		ptext = ptext.slice(8)
 		//console.log("ptext length is now: " + ptext.length)
 	}
@@ -600,18 +648,26 @@ function create_pkt9(ptext, passphrase, salt)
 //   msg: bytes eg: [0x41, 0x41, 0x41, 0x41]
 function create_pkt11(msg)
 {
+	assertType(msg, 'Uint8Array')
+	
 	fname = 'ptext.txt'
-	body = [0x62]									/* 'b' format (binary) */
-	body = body.concat(fname.length)				/* filename len */
-	body = body.concat(ascii_decode(fname))			/* filename */
-	body = body.concat([0,0,0,0])					/* date */
-	body = body.concat(msg)
-	return create_pkt(body, 11)
+	body = new Uint8Array(2 + fname.length + 4)
+	body[0] = 0x62									/* 'b' format (binary) */
+	body[1] = fname.length							/* filename len */
+	body.set(ascii_decode(fname), 2)				/* filename */
+	body.set([0,0,0,0], 2 + fname.length)			/* date */
+	body = u8_array_concat(body, msg)				/* message */
+	
+	console.log('pkt11 body: ' + body)
+
+	return create_pkt(new Uint8Array(body), 11)
 }
 
 function crc24(bytes)
 {
-	crc = 0xB704CE
+	assertType(bytes, 'Uint8Array')
+
+	var crc = 0xB704CE
 
 	for(i=0; i<bytes.length; ++i) {
 		crc ^= (bytes[i] << 16);
@@ -633,8 +689,11 @@ function crc24(bytes)
 */
 function encrypt(ptext, pword)
 {
+	assertType(ptext, 'Uint8Array')
+	assertType(pword, 'Uint8Array')
+
 	/* 1) Select a salt S and an iteration count c */
-	salt = crypt_gen_random(8)
+	var salt = crypt_gen_random(8)
 	console.debug("salt: " + bytes_pretty(salt));
 	
 	/* packet 11 is Literal Data Packet (holding the plaintext) */
@@ -654,7 +713,7 @@ function encrypt(ptext, pword)
 
 	/* convert packet 3 and packet 9 to a string, eg:
 		[0xDE, 0xAD, 0xBE, 0xEF] -> '\xDE\xAD\xBE\xEF' */
-	data = pkt3.concat(pkt9)
+	data = u8_array_concat(pkt3, pkt9)
 	console.debug("data: " + bytes_pretty(data))
 	tmp = bytes_to_string(data)
 
@@ -691,15 +750,15 @@ function btn_decrypt()
 	var passphrase = elem_passphrase.value
 
 	if(!passphrase.length)
-		errquit('missing passphrase')
+		errQuit('missing passphrase')
 
 	/* strip header, footer */
 	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
-		errquit("missing .gpg header");
+		errQuit("missing .gpg header");
 	ctext = ctext.substr(29)
 
 	if(ctext.substr(-27) != '\n-----END PGP MESSAGE-----\n')
-		errquit("missing .gpg footer");
+		errQuit("missing .gpg footer");
 	ctext = ctext.substr(0, ctext.length-27)
 
 	/* split body, checksum, verify */
@@ -711,60 +770,56 @@ function btn_decrypt()
 	}
 
 	if(idx_last_nl == ctext.length-1)
-		errquit("missing ascii armor checksum");
+		errQuit("missing ascii armor checksum");
 
 	if(ctext[idx_last_nl+1] != '=')
-		errquit("malformed ascii armor checksum");
+		errQuit("malformed ascii armor checksum");
 
-	var csum = ctext.substr(idx_last_nl+2)
-	csum = Array.from(atob(csum))
-	csum = csum.map(function(x) { return x.charCodeAt(0); })
-
+	var csum = b64_to_bytes(ctext.substr(idx_last_nl+2))
 	if(csum.length != 3)
-		errquit("expected checksum to decode to 3 bytes");
+		errQuit("expected checksum to decode to 3 bytes");
 
 	csum = (csum[0]<<16) | (csum[1]<<8) | csum[2];
 	console.log("csum given: " + csum.toString(16))
 
-	ctext = ctext.substr(0, idx_last_nl)
-	ctext = Array.from(atob(ctext))
-	ctext = ctext.map(function(x) { return x.charCodeAt(0); })
+	ctext = b64_to_bytes(ctext.substr(0, idx_last_nl))
 	console.debug("ctext: " + bytes_pretty(ctext))
 
 	var csum_calc = crc24(ctext)
 	console.log("csum calculated: " + csum_calc.toString(16))
 	if(csum != csum_calc)
-		errquit("checksum mismatch")
+		errQuit("checksum mismatch")
 
 	/* extract, check pkt3 */
 	var pkt_info = read_pkt(ctext)
+	console.log("pkt3: " + bytes_pretty(pkt_info['body']))
 	ctext = ctext.slice(pkt_info['header'].length + pkt_info['body'].length)
 
 	if(pkt_info['type'] != 3)
-		errquit("expected gpg packet 3 (encrypted session key params)")
+		errQuit("expected gpg packet 3 (encrypted session key params)")
 
 	if(pkt_info['body'][0] != 4)
-		errquit("support only for pkt3 version 4")
+		errQuit("support only for pkt3 version 4")
 	if(pkt_info['body'][1] != 3)
-		errquit("support only for pkt3 block algo 3 (CAST5)")
+		errQuit("support only for pkt3 block algo 3 (CAST5)")
 	if(pkt_info['body'][2] != 3)
-		errquit("support only for pkt3 s2k algo 3 (iterated+salted)")
+		errQuit("support only for pkt3 s2k algo 3 (iterated+salted)")
 	if(pkt_info['body'][3] != 2)
-		errquit("support only for pkt3 hash id 2 (sha1)")
+		errQuit("support only for pkt3 hash id 2 (sha1)")
 
 	if(pkt_info['length'] - pkt_info['header'].length != 13)
-		errquit("expected len(pkt3) == 13")
+		errQuit("expected len(pkt3) == 13")
 
 	var salt = pkt_info['body'].slice(4, 4+8)
 	console.debug('salt: ' + bytes_pretty(salt))
 
 	if(pkt_info['body'][12] != 0x60)
-		errquit("support only for pkt3 s2k iterations id 60 (65536)")
+		errQuit("support only for pkt3 s2k iterations id 60 (65536)")
 
 	/* extract, check packet 9 */
 	pkt_info = read_pkt(ctext)
 	if(pkt_info['type'] != 9)
-		errquit("expected gpg packet 9 (symm. encrypted data)")
+		errQuit("expected gpg packet 9 (symm. encrypted data)")
 
 	ctext = pkt_info['body']
 
@@ -776,49 +831,48 @@ function btn_decrypt()
 	var c5 = new OpenpgpSymencCast5()
 	c5.setKey(key)
 
-	var FR = [0,0,0,0,0,0,0,0]
+	var FR = new Uint8Array([0,0,0,0,0,0,0,0])
 	var FRE = c5.encrypt(FR)
-	var prefix = array_xor(ctext.slice(0,8), FRE)
+	var prefix = u8_array_xor(ctext.slice(0,8), FRE)
 	console.debug('prefix: ' + bytes_pretty(prefix))
 
 	FR = ctext.slice(0,8)
 	FRE = c5.encrypt(FR, key)
-	check = array_xor(ctext.slice(8,8+2), FRE.slice(0,2))
+	check = u8_array_xor(ctext.slice(8,8+2), FRE.slice(0,2))
 	if(check[0] != prefix[6] || check[1] != prefix[7])
-		errquit("key check failed (likely wrong passphrase)")
+		errQuit("key check failed (likely wrong passphrase)")
 
 	FR = ctext.slice(2,2+8)
 	ctext = ctext.slice(10)
 
-	var ptext = []
+	var ptext = new Uint8Array([])
 	while(ctext.length) {
 		FRE = c5.encrypt(FR, key)
 
 		var x = ctext.slice(0, 8)
 		ctext = ctext.slice(8)
 
-		var y = array_xor(x, FRE)
-		ptext = ptext.concat(y)
+		var y = u8_array_xor(x, FRE)
+		ptext = u8_array_concat(ptext, y)
 
 		FR = x
 	}
 
-	console.log('ptext: ' + ptext)
 	console.log('ptext: ' + bytes_pretty(ptext))
 
 	/* treat the plaintext as a pkt 11 */
 	pkt_info = read_pkt(ptext)
 	if(pkt_info['type'] != 11)
-		errquit("expected gpg packet 11 (literal data)")
+		errQuit("expected gpg packet 11 (literal data)")
 
 	var pkt11 = pkt_info['body']
 	console.log('pkt11: ' + bytes_pretty(pkt11))
 	if(pkt11[0] != 0x62)
-		errquit("expected to decrypt binary data")
-	if(array_cmp(pkt11.slice(1,1+10), [0x09, 0x70, 0x74, 0x65, 0x78, 0x74, 0x2e, 0x74, 0x78, 0x74]))
-		errquit("expected to decrypt dummy filename ptext.txt")
-	if(array_cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
-		errquit("expected to decrypt dummy date 00000000")
+		errQuit("expected to decrypt binary data")
+	if(u8_array_cmp(pkt11.slice(1,1+10), [0x09, 0x70, 0x74, 0x65, 0x78, 0x74, 0x2e, 0x74, 0x78, 0x74]))
+		errQuit("expected to decrypt dummy filename ptext.txt")
+	if(u8_array_cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
+		errQuit("expected to decrypt dummy date 00000000")
 	msg = pkt11.slice(15)
 
 	console.log("msg: " + msg)
@@ -867,17 +921,17 @@ function btn_host()
 	ctext = elem_ciphertext.value
 
 	if(ctext == '')
-		errquit("ciphertext is empty")
+		errQuit("ciphertext is empty")
 
 	resp = ajax_file('backend.py', ctext)
 	resp = resp.trim()
 	console.log('backend response: ' + resp)
 	if(resp == 'THROTTLED')
-		errquit("too many uploads (limit: 24 per day)")
+		errQuit("too many uploads (limit: 24 per day)")
 	if(resp == 'TOOBIG')
-		errquit("too large (limit: 2mb after encoding)")
+		errQuit("too large (limit: 2mb after encoding)")
 	if(resp.substr(resp.length-4) != ".gpg")
-		errquit("backend generating file name");
+		errQuit("backend generating file name");
 
 	fname = resp
 	adj_adj_anim = fname.substr(0,fname.length-4)
