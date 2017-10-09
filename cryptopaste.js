@@ -850,11 +850,10 @@ function btn_save_sdd()
 
 	/* temporary anchor tag */
 	var elem = document.createElement('a');
-	elem.innerText = 'Download SDD'
 	//elem.href = 'data:text/plain;base64,' + btoa(sdd)
 	elem.href = URL.createObjectURL(new Blob([sdd]))
 	elem.download = 'encrypted.html'
-	//elem.style.display = 'none'
+	elem.style.display = 'none'
 
 	/* fake click it */
 	document.body.appendChild(elem)
@@ -871,6 +870,9 @@ function btn_host()
 
 	fname = ajax_file('backend.py', ctext)
 	fname = fname.trim()
+	console.log('backend response: ' + fname)
+	if(fname == 'THROTTLED')
+		errquit("too many uploads")
 	if(fname.substr(fname.length-4) != ".gpg")
 		errquit("backend generating file name");
 	adj_adj_anim = fname.substr(0,fname.length-4)

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # cryptopaste backend (for storing data, etc.)
 # 
@@ -20,9 +20,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import cgi
-import random
+import time
 import namegen
+import maintenance
+
+import log24
 
 # if running on localhost, enable debugging
 if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
@@ -35,6 +39,8 @@ if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
 
 print "Content-Type: text/html\x0d\x0a\x0d\x0a",
 
+maintenance.maintain()
+
 form = cgi.FieldStorage()
 
 op = ''
@@ -42,6 +48,11 @@ if 'op' in form:
     op = form['op'].value
 
 if op == 'upload':
+    # uploads limited to 24 in a day (average 1/hour)
+    if log24.log24gethits(os.environ['REMOTE_ADDR']) > 24:
+        print 'THROTTLED'
+        sys.exit(0)
+ 
     paste = form['fdata'].value
     fpath = ''
     fname = ''
@@ -60,6 +71,9 @@ if op == 'upload':
     fo = open(fpath, 'w')
     fo.write(paste)
     fo.close()
+
+    # log
+    log24.log24append(os.environ['REMOTE_ADDR'], time.time())
 
     # report back to javascript
     print fname,

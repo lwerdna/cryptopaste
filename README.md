@@ -3,9 +3,9 @@ CryptoPaste is project that allows users to:
 * share encrypted text by linking to a website (internet or intranet)
 * generate self decrypting documents (attached to email, thumb drive, etc.)
 
-A minimal amount of the OpenPGP standard is implemented in javascript so that all enciphering and deciphering happens client side.
+A minimal amount of the OpenPGP standard ([RFC4880](./misc/rfc4880_OpenPGP_Message_Format.txt) is implemented in javascript so that all enciphering and deciphering happens client side.
 
-Cryptopaste make *NO* claims about practical security. It only attempts a faithful implementation of OpenPGP standards and algorithms in, what I think, is a fun-to-use and convenient form.
+CryptoPaste make *NO* claims about practical security. It only attempts a faithful implementation of OpenPGP standards and algorithms in (my opinion) a fun-to-use and convenient form. 
 
 ## What kind of encryption is used? How strong is it?
 
@@ -20,7 +20,7 @@ I don't know enough to make a meaningful comment on the strength of these parame
 
 Encipher some test data and copy paste the OpenPGP output to a .gpg file. Then you can run `gpg` with `--list-packets` or fully try to decrypt it with `--decrypt`. There is a lot of debugging output shown in the browser's developer console log that you can watch, too.
 
-## Does my plain text go on the network?
+## Does my plaintext go on the network?
 
 No, it happens in your browser. If you choose to create a link on cryptopate, the ciphertext will be put on the network and stored on the server.
 
@@ -32,15 +32,23 @@ Some ideas:
 * network sniffers like `tcpdump` and `wireshark`
 * reading the source code to see how it works
 
+## Does CryptoPaste log users?
+
+It does not log any ip address to file mapping.
+
+However, it must remember who's visited in the previous 24-hours to prevent an abusive user from uploading inordinate amounts of data. See `maintain()` in maintenance.py.
+
+Currently CryptoPaste is hosted on [Dreamhost](https://www.dreamhost.com/) on a lower tier shared server and can configure those options made available through their web interface. Site statistics are turned off. Day, Month, and Longterm reports are disabled. The minimum number of logging days is 3, which is the current setting.
+
 ## Can you recover my data or my password?
 
-No, cryptopaste never sees either the original data or the password. It only has the result of encryption, the ciphertext.
+No, CryptoPaste never sees either the original data or the password. It only has the result of encryption, the ciphertext.
 
-## Can I trust cryptopaste to protect my data?
+## Can I trust CryptoPaste to protect my data?
 
 NO! Google for "javascript encryption criticism" and there are many issues raised by those smarter than me in both cryptography and web development.
 
-The problem is that you cannot guarantee that the cryptopaste javascript wasn't mucked with between the server and your browser.
+If some advanced adversary were targetting you, and controlled the path between CryptoPaste and your browser, they could modify the javascript as your browser downloads it and (for example) weaken the parameters or outright send the plaintext somewhere.
 
 ## Will any other encryption parameters be available in the future?
 
