@@ -4,55 +4,8 @@
 
 <head>
  <meta charset="UTF-8">
- <style type="text/css">
-  body
-  {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 14px;
-    background-color: #C1C1FF;
-  }
-  h1
-  {
-    margin-bottom: 0px;
-  }
-  p
-  {
-    margin-top: 2px;
-    margin-bottom: 2px;
-  }
-  textarea
-  {
-    margin: 4px;
-}
-
-  .paste_area
-  {
-    background-color: #efeffe;
-    font-family: Consolas, Menlo, Monaco, Lucida Console, monospace, serif;
-    resize: none; 
-    border: 2px solid #48485f;
-    overflow-y: hidden;
-    height: 200px;
-    line-height: 21px;
-    rows: 128;
-    width: 100%
-  }
-  .fsSubmitButton
-  {
-    border-top:       2px solid #a3ceda;
-    border-left:      2px solid #a3ceda;
-    border-right:     2px solid #4f6267;
-    border-bottom:    2px solid #4f6267;
-    padding:          10px 20px !important;
-    font-size:        14px !important;
-    background-color: #c4f1fe;
-    font-weight:      bold;
-    color:            #2d525d;
-    width:            100%;
-  }
- </style>
+ <link rel="stylesheet" type="text/css" href="stylesheet.css" />
 </head>
-
 
 <script src="sha1.js"></script>
 <script src="cast5.js"></script>
@@ -63,33 +16,34 @@
 <h1 id=mode>Mode</h1>
 
 <textarea id="plaintext"
-       class="paste_area"
+       class="myTextInput"
  placeholder="(private data to protect)"
        style="display:none">
 </textarea>
 
 <textarea id="ciphertext"
-       class="paste_area"
+       class="myTextInput"
  placeholder="(your encrypted text will go here)"
        style="display:none"><!-- CIPHERTEXT --></textarea>
 
-<textarea id="passphrase"
-       class="paste_area"
-       style="height: 32px; display:none"
- placeholder="(passphrase)">
+<input type="password"
+         id="passphrase"
+      class="myTextInput"
+      style="height: 32px; display:none"
+placeholder="(passphrase)">
 </textarea>
 
 <input type="button"
          id="decrypt_btn"
-      class="fsSubmitButton"
+      class="myButton"
       value="Decrypt"
       style="display:none"
     onClick="btn_decrypt()"/>
 
 <input type="button"
          id="encrypt_btn"
-      class="fsSubmitButton"
-      value="Encrypt*"
+      class="myButton"
+      value="Encrypt"
       style="display:none"
     onClick="btn_encrypt()"/>
 
@@ -100,14 +54,14 @@
 
 <input type="button"
          id="host_btn"
-      class="fsSubmitButton"
+      class="myButton"
       value="Create Link (ciphertext hosted on cryptopaste.com)"
       style="display:none"
     onClick="btn_host()"/>
 
 <input type="button"
          id="local_btn"
-      class="fsSubmitButton"
+      class="myButton"
       value="Save Self-Decrypting Document (no network activity)"
       style="display:none"
     onClick="btn_save_sdd()"/>
@@ -116,7 +70,7 @@
   Use this link to share your protected data with others
 </p>
 <textarea id="url_share"
-       class="paste_area"
+       class="myTextInput"
        style="height: 32px; dispay:none"
  placeholder="(sharing url)">
 </textarea>
@@ -125,18 +79,16 @@
   This link shows the raw data stored by the server:
 </p>
 <textarea id="url_raw"
-       class="paste_area"
+       class="myTextInput"
        style="height: 32px; display:none">
 </textarea>
 
 <hr>
+
 <font size=-2>
- CryptoPaste is free, open-source, strong, current encryption. | 
-<a href=about.html>About</a> |
-<a href=faq.html>FAQ</a> | 
-<a href=contact.html>Contact</a> |
-<a href=donate.html>Donate</a>
+ CryptoPaste is free, <a href='https://github.com/lwerdna/cryptopaste'>open source</a>, strong encryption.
 </font>
+
 </body>
 
 </html>

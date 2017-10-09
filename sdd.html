@@ -5,54 +5,43 @@
 <head>
  <meta charset="UTF-8">
  <style type="text/css">
-  body
-  {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 14px;
-    background-color: #C1C1FF;
-  }
-  h1
-  {
-    margin-bottom: 0px;
-  }
-  p
-  {
-    margin-top: 2px;
-    margin-bottom: 2px;
-  }
-  textarea
-  {
-    margin: 4px;
+body
+{
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 14px;
+	background-color: #C1C1FF;
+	margin: 16px;
+}
+h1
+{
+	margin-bottom: 4px;
+}
+.myTextInput
+{
+	background-color: #efeffe;
+	font-family: Consolas, Menlo, Monaco, Lucida Console, monospace, serif;
+	border: 2px solid #48485f;
+	height: 200px;
+	width: 100%
+}
+.myButton
+{
+	background-color: #c4f1fe;
+	border-top: 2px solid #a3ceda;
+	border-left: 2px solid #a3ceda;
+	border-right: 2px solid #4f6267;
+	border-bottom: 2px solid #4f6267;
+	padding: 10px 20px;
+	font-size: 14px;
+	font-weight: bold;
+	color: #2d525d;
+	width: 100%;
+	margin-bottom: 2px;
 }
 
-  .paste_area
-  {
-    background-color: #efeffe;
-    font-family: Consolas, Menlo, Monaco, Lucida Console, monospace, serif;
-    resize: none; 
-    border: 2px solid #48485f;
-    overflow-y: hidden;
-    height: 200px;
-    line-height: 21px;
-    rows: 128;
-    width: 100%
-  }
-  .fsSubmitButton
-  {
-    border-top:       2px solid #a3ceda;
-    border-left:      2px solid #a3ceda;
-    border-right:     2px solid #4f6267;
-    border-bottom:    2px solid #4f6267;
-    padding:          10px 20px !important;
-    font-size:        14px !important;
-    background-color: #c4f1fe;
-    font-weight:      bold;
-    color:            #2d525d;
-    width:            100%;
-  }
- </style>
-</head>
+</style>
 
+</head>
 
 
 <!-- from <script src="sha1.js"></script> -->
@@ -873,7 +862,7 @@ Cast5.keySize = Cast5.prototype.keySize = 16;
 */
 
 /******************************************************************************
-	GLOBAL VARIABLES
+ SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
 var elem_mode
 
@@ -893,7 +882,7 @@ var elem_url_raw_info
 var elem_url_raw
 
 /******************************************************************************
-	FUNCTIONS
+ FUNCTIONS
 ******************************************************************************/
 function set_globals()
 {
@@ -982,7 +971,7 @@ function mode_activate(mode)
 }
 
 /******************************************************************************
-	WEB UTILITIES
+ WEB UTILITIES
 ******************************************************************************/
 
 
@@ -998,7 +987,7 @@ function mode_activate(mode)
 
 
 /******************************************************************************
-	GENERAL UTILITIES
+ GENERAL UTILITIES
 ******************************************************************************/
 
 /* converts "AA" to [0x41, 0x00, 0x41, 0x00,] */
@@ -1220,7 +1209,7 @@ function errquit(msg)
 }
 
 /******************************************************************************
-	OPENPGP FUNCTIONS
+ OPENPGP FUNCTIONS
 ******************************************************************************/
 
 function create_pkt(body, tagid)
@@ -1449,7 +1438,7 @@ function encrypt(ptext, pword)
 }
 
 /******************************************************************************
-	FORM INTERACTION, CALLBACKS
+ FORM INTERACTION, CALLBACKS
 ******************************************************************************/
 
 function btn_decrypt()
@@ -1608,32 +1597,33 @@ function btn_decrypt()
 <h1 id=mode>Mode</h1>
 
 <textarea id="plaintext"
-       class="paste_area"
+       class="myTextInput"
  placeholder="(private data to protect)"
        style="display:none">
 </textarea>
 
 <textarea id="ciphertext"
-       class="paste_area"
+       class="myTextInput"
  placeholder="(your encrypted text will go here)"
        style="display:none"><!-- CIPHERTEXT --></textarea>
 
-<textarea id="passphrase"
-       class="paste_area"
-       style="height: 32px; display:none"
- placeholder="(passphrase)">
+<input type="password"
+         id="passphrase"
+      class="myTextInput"
+      style="height: 32px; display:none"
+placeholder="(passphrase)">
 </textarea>
 
 <input type="button"
          id="decrypt_btn"
-      class="fsSubmitButton"
+      class="myButton"
       value="Decrypt"
       style="display:none"
     onClick="btn_decrypt()"/>
 
 <input type="button"
          id="encrypt_btn"
-      class="fsSubmitButton"
+      class="myButton"
       value="Encrypt*"
       style="display:none"
     onClick="btn_encrypt()"/>
@@ -1645,15 +1635,15 @@ function btn_decrypt()
 
 <input type="button"
          id="host_btn"
-      class="fsSubmitButton"
-      value="Host Ciphertext"
+      class="myButton"
+      value="Create Link (ciphertext hosted on cryptopaste.com)"
       style="display:none"
     onClick="btn_host()"/>
 
 <input type="button"
          id="local_btn"
-      class="fsSubmitButton"
-      value="Save Self-Decrypting Document"
+      class="myButton"
+      value="Save Self-Decrypting Document (no network activity)"
       style="display:none"
     onClick="btn_save_sdd()"/>
 
@@ -1661,7 +1651,7 @@ function btn_decrypt()
   Use this link to share your protected data with others
 </p>
 <textarea id="url_share"
-       class="paste_area"
+       class="myTextInput"
        style="height: 32px; dispay:none"
  placeholder="(sharing url)">
 </textarea>
@@ -1670,17 +1660,13 @@ function btn_decrypt()
   This link shows the raw data stored by the server:
 </p>
 <textarea id="url_raw"
-       class="paste_area"
+       class="myTextInput"
        style="height: 32px; display:none">
 </textarea>
 
 <hr>
 <font size=-2>
- CryptoPaste is free, open-source, strong, current encryption. | 
-<a href=about.html>About</a> |
-<a href=faq.html>FAQ</a> | 
-<a href=contact.html>Contact</a> |
-<a href=donate.html>Donate</a>
+ CryptoPaste is free, <a href='http://github.com/lwerdna/cryptoaste'>open source</a>, strong encryption. <a href=questions.html>Questions?</a> |
 </font>
 </body>
 

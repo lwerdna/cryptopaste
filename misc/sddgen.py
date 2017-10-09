@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-# generates the self-decrypting document (SDD) from index.html and
-# javascript files
+# generates the self-decrypting document (SDD) from:
+# index.html, javascript, and css
 
 import re
 import sys
@@ -15,12 +15,19 @@ def load_file(fpath):
 def replace_func(inp, func, repl):
     print "replacing function -%s-" % func
     regex = r'^function %s.*?^}' % func
-    print "regex is: -%s-" % regex
     assert re.search(regex, inp, re.MULTILINE|re.DOTALL)
     return re.sub(regex, repl, inp, 0, re.MULTILINE|re.DOTALL)
 
-# find all '<script src="blah.js"></script>' in the index.html
 index = load_file('index.html')
+
+# convert external stylesheet to internal
+internal = load_file('stylesheet.css')
+internal = '<style type="text/css">\n'+internal+'\n</style>\n'
+external = '<link rel="stylesheet" type="text/css" href="stylesheet.css" />'
+assert index.find(external) != -1
+index = index.replace(external, internal)
+
+# find all '<script src="blah.js"></script>' in the index.html
 includes = re.findall(r'<script src=".*"></script>', index)
 
 # replace each '<script src="blah.js"></script>' with blah.js

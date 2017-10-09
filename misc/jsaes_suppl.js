@@ -2,7 +2,7 @@
  * jsaes.js supplement
  * This file is a part of CryptoPaste 
  *
- * Copyright (c) 2013-2016 Andrew Lamoureux
+ * Copyright (c) 2013-2017 Andrew Lamoureux
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
