@@ -21,7 +21,7 @@
 */
 
 /******************************************************************************
-	GLOBAL VARIABLES
+ SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
 var elem_mode
 
@@ -41,7 +41,7 @@ var elem_url_raw_info
 var elem_url_raw
 
 /******************************************************************************
-	FUNCTIONS
+ FUNCTIONS
 ******************************************************************************/
 function set_globals()
 {
@@ -80,7 +80,7 @@ function cryptopaste_init()
 	/* if the pathname is AdjAdjAnimal, seek the .gpg from backend and go into
 		decrypt mode */
 	else 
-	if(/^[A-Z][a-z]+[A-Z][a-z]+[A-Z][a-z]+$/.test(pathname)) {
+	if(/^[A-Za-z]+$/.test(pathname)) {
 		var adj_adj_animal = pathname
 		if(adj_adj_animal[0] == '/')
 			adj_adj_animal = adj_adj_animal.substr(1)
@@ -99,7 +99,7 @@ function cryptopaste_init()
 	}
 	/* if we are the 404 handler for a missing .gpg file, pop up an error */
 	else
-	if(/^[A-Z][a-z]+[A-Z][a-z]+[A-Z][a-z]+\.gpg$/.test(pathname)) {
+	if(/^[A-Za-z]+\.gpg$/.test(pathname)) {
 		errquit('nonexistent paste: ' + pathname + ' (expired?)')
 	}
 	/* else */
@@ -168,7 +168,7 @@ function mode_activate(mode)
 }
 
 /******************************************************************************
-	WEB UTILITIES
+ WEB UTILITIES
 ******************************************************************************/
 function ajax_get(url)
 {
@@ -230,7 +230,7 @@ function ajax_file(url, data_string) {
 }
 
 /******************************************************************************
-	GENERAL UTILITIES
+ GENERAL UTILITIES
 ******************************************************************************/
 
 /* converts "AA" to [0x41, 0x00, 0x41, 0x00,] */
@@ -452,7 +452,7 @@ function errquit(msg)
 }
 
 /******************************************************************************
-	OPENPGP FUNCTIONS
+ OPENPGP FUNCTIONS
 ******************************************************************************/
 
 function create_pkt(body, tagid)
@@ -681,7 +681,7 @@ function encrypt(ptext, pword)
 }
 
 /******************************************************************************
-	FORM INTERACTION, CALLBACKS
+ FORM INTERACTION, CALLBACKS
 ******************************************************************************/
 
 function btn_decrypt()
@@ -851,7 +851,8 @@ function btn_save_sdd()
 	/* temporary anchor tag */
 	var elem = document.createElement('a');
 	elem.innerText = 'Download SDD'
-	elem.href = 'data:text/plain;base64,' + btoa(sdd)
+	//elem.href = 'data:text/plain;base64,' + btoa(sdd)
+	elem.href = URL.createObjectURL(new Blob([sdd]))
 	elem.download = 'encrypted.html'
 	//elem.style.display = 'none'
 
