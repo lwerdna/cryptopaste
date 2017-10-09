@@ -564,20 +564,20 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 
 function create_pkt9(ptext, passphrase, salt)
 {
-	key = s2k(passphrase, salt, 2, 65536, 16)
+	var key = s2k(passphrase, salt, 2, 65536, 16)
 	console.debug('CAST5 key: ' + bytes_pretty(key))
 
-	c5 = new OpenpgpSymencCast5()
+	var c5 = new OpenpgpSymencCast5()
 	c5.setKey(key)
 
 	/* encrypt with OpenPGP CFB Mode (see 13.9) */
-	prefix = crypt_gen_random(8)
+	var prefix = crypt_gen_random(8)
 	console.debug('CAST5 prefix: ' + bytes_pretty(prefix))
 
-	FR = [0,0,0,0,0,0,0,0]
-	FRE = c5.encrypt(FR)
+	var FR = [0,0,0,0,0,0,0,0]
+	var FRE = c5.encrypt(FR)
 	console.debug('CAST5 first output: ' + bytes_pretty(FRE))
-	ctext = array_xor(prefix, FRE)
+	var ctext = array_xor(prefix, FRE)
 	console.debug('CAST5 first ctext: ' + bytes_pretty(ctext))
 
 	FR = ctext
@@ -590,6 +590,7 @@ function create_pkt9(ptext, passphrase, salt)
 		FR = array_xor(ptext.slice(0,8), FRE)
 		ctext = ctext.concat(FR)
 		ptext = ptext.slice(8)
+		//console.log("ptext length is now: " + ptext.length)
 	}
 
 	return create_pkt(ctext, 9);
@@ -868,13 +869,17 @@ function btn_host()
 	if(ctext == '')
 		errquit("ciphertext is empty")
 
-	fname = ajax_file('backend.py', ctext)
-	fname = fname.trim()
-	console.log('backend response: ' + fname)
-	if(fname == 'THROTTLED')
-		errquit("too many uploads")
-	if(fname.substr(fname.length-4) != ".gpg")
+	resp = ajax_file('backend.py', ctext)
+	resp = resp.trim()
+	console.log('backend response: ' + resp)
+	if(resp == 'THROTTLED')
+		errquit("too many uploads (limit: 24 per day)")
+	if(resp == 'TOOBIG')
+		errquit("too large (limit: 2mb after encoding)")
+	if(resp.substr(resp.length-4) != ".gpg")
 		errquit("backend generating file name");
+
+	fname = resp
 	adj_adj_anim = fname.substr(0,fname.length-4)
 
 	/* update gui stuff */

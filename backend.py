@@ -29,9 +29,11 @@ import maintenance
 import log24
 
 # if running on localhost, enable debugging
+testing = False
 if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
     import cgitb
     cgitb.enable()
+    testing = True
 
 #------------------------------------------------------------------------------
 # MAIN
@@ -54,6 +56,11 @@ if op == 'upload':
         sys.exit(0)
  
     paste = form['fdata'].value
+
+    if len(paste) > 2097152:
+        print 'TOOBIG'
+        sys.exit(0)
+
     fpath = ''
     fname = ''
 
@@ -81,7 +88,7 @@ if op == 'upload':
 elif op == 'test':
     print "OK",
 
-elif op == 'env':
+elif op == 'env' and testing:
 	print 'form: ', form
 	print '<hr>'
 	print 'env: '
