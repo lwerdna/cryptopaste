@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import re
 import sys
 import cgi
 import time
@@ -29,11 +30,9 @@ import maintenance
 import log24
 
 # if running on localhost, enable debugging
-testing = False
 if ('HTTP_HOST' in os.environ) and (os.environ['HTTP_HOST'] == 'localhost'):
     import cgitb
     cgitb.enable()
-    testing = True
 
 #------------------------------------------------------------------------------
 # MAIN
@@ -49,16 +48,21 @@ op = ''
 if 'op' in form:
     op = form['op'].value
 
+if op == '':
+    print '<p>This is the CryptoPaste backend, meant to be called from the frontend (index.html) javascript code.</p>'
+    print '<p>Try backend.py?op=test or backend.py?op=read&fname=AbaftAbandonedAardvark.gpg to see it in action.</p>'
+    sys.exit(-1)
+
 if op == 'upload':
     # uploads limited to 24 in a day (average 1/hour)
     if log24.log24gethits(os.environ['REMOTE_ADDR']) > 24:
-        print 'THROTTLED'
+        print 'THROTTLED',
         sys.exit(0)
  
     paste = form['fdata'].value
 
     if len(paste) > 2097152:
-        print 'TOOBIG'
+        print 'TOOBIG',
         sys.exit(0)
 
     fpath = ''
@@ -85,14 +89,28 @@ if op == 'upload':
     # report back to javascript
     print fname,
 
+elif op == 'read':
+    fname = form['fname'].value
+    if not re.match(r'^[A-Za-z]+\.gpg$', fname):
+        print 'MALFORMED',
+        sys.exit(-1)
+
+    fpath = os.path.join('.', 'pastes', fname)
+    if not os.path.isfile(fpath):
+        print 'NONEXISTENT',
+        sys.exit(-1)
+
+    with open(fpath) as fp:
+        print fp.read()
+
 elif op == 'test':
     print "OK",
 
-elif op == 'env' and testing:
-	print 'form: ', form
-	print '<hr>'
-	print 'env: '
-	print os.environ
+#elif op == 'env':
+#	print 'form: ', form
+#	print '<hr>'
+#	print 'env: '
+#	print os.environ
 
 else:
     print "ERROR: unrecognized op: \"%s\"" % op,

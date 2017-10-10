@@ -88,12 +88,20 @@ function cryptopaste_init()
 	
 		/* form new url */
 		var path_gpg = window.location.href.replace(adj_adj_animal,
-		  "pastes/" + adj_adj_animal + ".gpg")
-		console.debug("path_gpg: " + path_gpg)
+		  "backend.py?op=read&fname=" + adj_adj_animal + ".gpg")
+		console.debug("seeking: " + path_gpg)
 	
 		/* read GPG data into the decrypt field */
-		var gpg_text = ajax_get(path_gpg)
-		elem_ciphertext.value = gpg_text	
+		var resp = ajax_get(path_gpg).trim()
+
+		if(resp == 'MALFORMED')
+			errQuit('malformed file name (don\'t hack me bro)')
+		if(resp == 'NONEXISTENT')
+			errQuit('missing file (did it expire?)')
+		if(resp.substr(0, 27) != '-----BEGIN PGP MESSAGE-----')
+			errQuit('backend didn\'t serve up PGP data')
+
+		elem_ciphertext.value = resp
 
 		mode = 'decrypt'
 	}
@@ -823,14 +831,21 @@ function encrypt(ptext, pword, salt, prefix)
 */
 function decrypt(ctext, passphrase)
 {
-	/* strip header, footer */
+	/* strip header */
 	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
 		errQuit("missing .gpg header");
 	ctext = ctext.substr(29)
 
-	if(ctext.substr(-27) != '\n-----END PGP MESSAGE-----\n')
+	/* eat whitespace */
+	var realLen = ctext.length
+	while(ctext[realLen-1] == '\n' || ctext[realLen-1] == ' ')
+		realLen -= 1
+	ctext = ctext.substr(0, realLen)
+
+	/* strip footer */
+	if(ctext.substr(-26) != '\n-----END PGP MESSAGE-----')
 		errQuit("missing .gpg footer");
-	ctext = ctext.substr(0, ctext.length-27)
+	ctext = ctext.substr(0, ctext.length - 26)
 
 	/* split body, checksum, verify */
 	var idx_last_nl = ctext.length-1
