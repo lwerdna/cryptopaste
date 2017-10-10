@@ -1051,8 +1051,8 @@ function btn_host()
 	adj_adj_anim = fname.substr(0,fname.length-4)
 
 	/* update gui stuff */
-	elem_url_share.innerText = 'http://cryptopaste.com/' + adj_adj_anim
-	elem_url_raw.innerText = 'http://cryptopaste.com/pastes/' + fname
+	elem_url_share.innerText = 'https://cryptopaste.com/' + adj_adj_anim
+	elem_url_raw.innerText = 'https://cryptopaste.com/pastes/' + fname
 
 	mode_activate('hosted')
 }
