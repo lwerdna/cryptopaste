@@ -303,8 +303,8 @@ function bytes_pretty(bytes)
 	*/
 	var suffix = ''
 	var tmp = Array.from(bytes)
-	if(tmp.length > 16) {
-		tmp = tmp.slice(0,16)
+	if(tmp.length > 32) {
+		tmp = tmp.slice(0,32)
 		suffix = '...'
 	}
 
@@ -606,9 +606,9 @@ function read_pkt(data)
 		errQuit("indeterminate packet length unsupported")
 	}
 	
-	console.log("pkt     type: " + tag_val)
-	console.log("pkt  hdr_len: " + hdr_len)
-	console.log("pkt body_len: " + body_len)
+	//console.log("pkt     type: " + tag_val)
+	//console.log("pkt  hdr_len: " + hdr_len)
+	//console.log("pkt body_len: " + body_len)
 
 	if(hdr_len + body_len > data.length)
 		errQuit("packet is larger than available data")
@@ -664,7 +664,7 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 	return digest.slice(0, key_len)
 }
 
-function create_pkt9(ptext, passphrase, salt)
+function create_pkt9(ptext, passphrase, salt, prefix)
 {
 	assertType(ptext, 'Uint8Array')
 	assertType(passphrase, 'Uint8Array')
@@ -677,7 +677,8 @@ function create_pkt9(ptext, passphrase, salt)
 	c5.setKey(key)
 
 	/* encrypt with OpenPGP CFB Mode (see 13.9) */
-	var prefix = crypt_gen_random(8)
+	if(prefix == undefined)
+		prefix = crypt_gen_random(8)
 	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
 
 	var ctext = new Uint8Array(10 + ptext.length)
@@ -760,13 +761,14 @@ function crc24(bytes)
    output:
 	result (string like '-----BEGIN PGP MESSAGE-----....')
 */
-function encrypt(ptext, pword)
+function encrypt(ptext, pword, salt, prefix)
 {
 	assertType(ptext, 'Uint8Array')
 	assertType(pword, 'Uint8Array')
 
-	/* 1) Select a salt S and an iteration count c */
-	var salt = crypt_gen_random(8)
+	/* 1) Select a salt S */
+	if(salt == undefined)
+		salt = crypt_gen_random(8)
 	console.debug("salt: " + bytes_pretty(salt));
 	
 	/* packet 11 is Literal Data Packet (holding the plaintext) */
@@ -777,7 +779,7 @@ function encrypt(ptext, pword)
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
 	console.debug("pass: " + bytes_pretty(pword))
-	pkt9 = create_pkt9(pkt11, pword, salt)
+	pkt9 = create_pkt9(pkt11, pword, salt, prefix)
 	console.debug("pkt9 (full): " + bytes_pretty(pkt9))
 
 	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
@@ -813,18 +815,14 @@ function encrypt(ptext, pword)
 	return output
 }
 
-/******************************************************************************
- FORM INTERACTION, CALLBACKS
-******************************************************************************/
-
-function btn_decrypt()
+/* input:
+	ctext: string like '-----BEGIN PGP MESSAGE-----....'
+	pword: passphrase (array of byte value)
+   output:
+	ptext: plaintext (array of byte values)
+*/
+function decrypt(ctext, passphrase)
 {
-	var ctext = elem_ciphertext.value
-	var passphrase = elem_passphrase.value
-
-	if(!passphrase.length)
-		errQuit('missing passphrase')
-
 	/* strip header, footer */
 	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
 		errQuit("missing .gpg header");
@@ -913,7 +911,7 @@ function btn_decrypt()
 	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
 
 	u8memcpy(FR,0, ctext,0, 8)							/* FR = ctext[0..7] */
-	FRE = c5.encrypt(FR, key)							/* FRE = cast5(FR, key) */
+	FRE = c5.encrypt(FR)								/* FRE = cast5(FR, key) */
 
 	if((ctext[8]^FRE[0]) != prefix[6] || (ctext[9]^FRE[1]) != prefix[7])
 		errQuit("key check failed (likely wrong passphrase)")
@@ -927,7 +925,7 @@ function btn_decrypt()
 	var srcI = 10
 	var remaining = ptext.length
 	while(remaining > 0) {
-		FRE = c5.encrypt(FR, key)						/* FRE = cast5(FR, key) */
+		FRE = c5.encrypt(FR)							/* FRE = cast5(FR, key) */
 		u8memcpy(FR,0, ctext,srcI, 8)					/* FR = ctext */
 
 		if(remaining >= 8)								/* ptext += FRE^ctext */
@@ -958,6 +956,23 @@ function btn_decrypt()
 	if(u8cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
 		errQuit("expected to decrypt dummy date 00000000")
 	msg = pkt11.slice(15)
+
+	return msg
+}
+
+/******************************************************************************
+ FORM INTERACTION, CALLBACKS
+******************************************************************************/
+
+function btn_decrypt()
+{
+	var ctext = elem_ciphertext.value
+	var passphrase = elem_passphrase.value
+
+	if(!passphrase.length)
+		errQuit('missing passphrase')
+
+	msg = decrypt(ctext, passphrase)
 
 	console.log("msg: " + msg)
 
@@ -1032,49 +1047,26 @@ function btn_host()
 ******************************************************************************/
 function test()
 {
-	console.log("test() running!")
+	var known = '-----BEGIN PGP MESSAGE-----\n\n'
+	known += 'jA0EAwMCESIzRFVmd4hgpCi+L/NDluevyPWFyNZ5Ue71k0/0/aYt1A0Yol+QCECr'
+	known += 'uTROYGQ/Q5AI\n=hjCh\n-----END PGP MESSAGE-----\n'
 
-	var c5, key, ptext, ctext, out
+	/* encrypt against known result with fixed salt, prefix */
+	var salt = new Uint8Array([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
+	var prefix = new Uint8Array([0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8])
+	var ptext = ascii_decode("Hello, world!")	
+	var passph = ascii_decode("pw")
+	var out = encrypt(ptext, passph, salt, prefix)
+	assert(out == known) // known result?
+	out = decrypt(out, passph) // check decrypt
+	assert(u8cmp(out, ptext) == 0)
 
-	c5 = new OpenpgpSymencCast5()
-
-	key = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
-	ptext = ascii_decode('\x01\x23\x45\x67\x89\xAB\xCD\xEF')
-	ctext = ascii_decode('\x23\x8B\x4F\xE5\x84\x7E\x44\xB2')
-
-	console.log('key: ' + bytes_pretty(key))
-	console.log('ptext: ' + bytes_pretty(ptext))
-	console.log('ctext: ' + bytes_pretty(ctext))
-
-	c5.setKey(key)
-	out = c5.encrypt(ptext)
-	console.log('got out:' + bytes_pretty(out))
-	if(u8cmp(out, ctext) != 0) {
-		throw('ERROR: c5')
-	}
-
-	var t0 = performance.now()
-	for(var i=0; i<1000000; ++i) {
-		out = c5.encrypt(ptext)
-	}
-	var t1 = performance.now()
-	console.log('stresser took ' + (t1-t0) + 'ms')
-
-//	console.log("maintenance tests, ohoh yea")
-//	a, b;
-//	var aL = new Uint8Array()
-//	var aR = new Uint8Array()
-//	var a = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
-//	var b = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
-//	for(var i=0; i<1000000; ++i) {
-//		u8memcpy(aL, 0, a, 0, 8)
-//		u8memcpy(aR, 0, a, 8, 8)
-//		aL = c5.encrypt(aL, b)
-//		aR = c5.encrypt(aR, b)
-//		u8memcpy(a
-//
-//		u8
-//	}
-
+	/* encrypt again, this time with salt, prefix unspecified */
+	out = encrypt(ptext, passph)
+	assert(out != known)
+	out = decrypt(out, passph)
+	assert(u8cmp(out, ptext) == 0)
+		
+	/* done */	
 	console.log('success!')
 }

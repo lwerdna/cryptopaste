@@ -7,7 +7,6 @@
 // Copyright 2010 pjacobs@xeekr.com . All rights reserved.
 
 // Modified by Recurity Labs GmbH
-
 // fixed/modified by Herbert Hanewinkel, www.haneWIN.de
 // check www.haneWIN.de for the latest version
 
@@ -592,22 +591,76 @@ function OpenpgpSymencCast5() {
     0x5938fa0f, 0x42399ef3, 0x36997b07, 0x0e84093d, 0x4aa93e61, 0x8360d87b, 0x1fa98b0c, 0x1149382c,
     0xe97625a5, 0x0614d1b7, 0x0e25244b, 0x0c768347, 0x589e8d82, 0x0d2059d1, 0xa466bb1e, 0xf8da0a82,
     0x04f19130, 0xba6e4ec0, 0x99265164, 0x1ee7230d, 0x50b2ad80, 0xeaee6801, 0x8db2a283, 0xea8bf59e]);
-
 }
 
-function Cast5(key) {
-  this.cast5 = new OpenpgpSymencCast5();
-  this.cast5.setKey(key);
+function test_cast5()
+{
+	console.log("test_cast5() running!")
 
-  this.encrypt = function(block) {
-    return this.cast5.encrypt(block);
-  };
+	var c5, key, ptext, ctext, out
 
-  this.decrypt = function(block) {
-	return this.cast5.decrypt(block);
-  };
+	c5 = new OpenpgpSymencCast5()
+
+    /* A SINGLE ENCRYPT */
+	key = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+	ptext = ascii_decode('\x01\x23\x45\x67\x89\xAB\xCD\xEF')
+	ctext = ascii_decode('\x23\x8B\x4F\xE5\x84\x7E\x44\xB2')
+
+	console.log('key: ' + bytes_pretty(key))
+	console.log('ptext: ' + bytes_pretty(ptext))
+	console.log('ctext: ' + bytes_pretty(ctext))
+
+	c5.setKey(key)
+	out = c5.encrypt(ptext)
+	console.log('got out:' + bytes_pretty(out))
+	if(u8cmp(out, ctext) != 0) {
+		throw('ERROR: c5')
+	}
+
+    /* HOW LONG FOR A MILLION ENCRYPTS? */
+	var t0 = performance.now()
+	for(var i=0; i<1000000; ++i) {
+		out = c5.encrypt(ptext)
+	}
+	var t1 = performance.now()
+	console.log('stresser#1 took ' + (t1-t0) + 'ms')
+    
+    /* MAINTENANCE TEST? A MILLION TWISTY ENCRYPTS */
+	console.log("cast5 maintenance tests")
+	var aL = new Uint8Array(8)
+	var aR = new Uint8Array(8)
+	var bL = new Uint8Array(8)
+	var bR = new Uint8Array(8)
+	var a = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+	var b = ascii_decode('\x01\x23\x45\x67\x12\x34\x56\x78\x23\x45\x67\x89\x34\x56\x78\x9A')
+	t0 = performance.now()
+	for(var i=0; i<1000000; ++i) {
+		u8memcpy(aL,0, a,0, 8)
+		u8memcpy(aR,0, a,8, 8)
+		c5.setKey(b)
+		aL = c5.encrypt(aL)
+		aR = c5.encrypt(aR)
+
+		u8memcpy(a,0, aL,0, 8)		/* a = aL + aR */
+		u8memcpy(a,8, aR,0, 8)
+
+		u8memcpy(bL,0, b,0, 8)
+		u8memcpy(bR,0, b,8, 8)
+		c5.setKey(a)
+		bL = c5.encrypt(bL)
+		bR = c5.encrypt(bR)
+
+		u8memcpy(b,0, bL,0, 8)		/* b = bL + bR */
+		u8memcpy(b,8, bR,0, 8)
+	}
+
+	if(u8cmp(a, ascii_decode('\xEE\xA9\xD0\xA2\x49\xFD\x3B\xA6\xB3\x43\x6F\xB8\x9D\x6D\xCA\x92')) != 0)
+		throw('ERROR: c5')
+	if(u8cmp(b, ascii_decode('\xB2\xC9\x5E\xB0\x0C\x31\xAD\x71\x80\xAC\x05\xB8\xE8\x3D\x69\x6E')) != 0)
+		throw('ERROR: c5')
+	t1 = performance.now()
+	console.log('maintenance test took ' + (t1-t0) + 'ms')
+
+    /* made it here? success */	
+	console.log('success!')
 }
-
-Cast5.blockSize = Cast5.prototype.blockSize = 8;
-Cast5.keySize = Cast5.prototype.keySize = 16;
-

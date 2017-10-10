@@ -231,7 +231,6 @@ function SHA1(array)
 // Copyright 2010 pjacobs@xeekr.com . All rights reserved.
 
 // Modified by Recurity Labs GmbH
-
 // fixed/modified by Herbert Hanewinkel, www.haneWIN.de
 // check www.haneWIN.de for the latest version
 
@@ -816,24 +815,8 @@ function OpenpgpSymencCast5() {
     0x5938fa0f, 0x42399ef3, 0x36997b07, 0x0e84093d, 0x4aa93e61, 0x8360d87b, 0x1fa98b0c, 0x1149382c,
     0xe97625a5, 0x0614d1b7, 0x0e25244b, 0x0c768347, 0x589e8d82, 0x0d2059d1, 0xa466bb1e, 0xf8da0a82,
     0x04f19130, 0xba6e4ec0, 0x99265164, 0x1ee7230d, 0x50b2ad80, 0xeaee6801, 0x8db2a283, 0xea8bf59e]);
-
 }
 
-function Cast5(key) {
-  this.cast5 = new OpenpgpSymencCast5();
-  this.cast5.setKey(key);
-
-  this.encrypt = function(block) {
-    return this.cast5.encrypt(block);
-  };
-
-  this.decrypt = function(block) {
-	return this.cast5.decrypt(block);
-  };
-}
-
-Cast5.blockSize = Cast5.prototype.blockSize = 8;
-Cast5.keySize = Cast5.prototype.keySize = 16;
 
 </script>
 
@@ -1061,10 +1044,10 @@ function bytes_pretty(bytes)
 	*/
 	var suffix = ''
 	var tmp = Array.from(bytes)
-	if(tmp.length > 16) {
-		tmp = tmp.slice(0,16)
-		suffix = '...'
-	}
+//	if(tmp.length > 32) {
+//		tmp = tmp.slice(0,32)
+//		suffix = '...'
+//	}
 
 	return tmp.map(
 		function(x) {
@@ -1364,9 +1347,9 @@ function read_pkt(data)
 		errQuit("indeterminate packet length unsupported")
 	}
 	
-	console.log("pkt     type: " + tag_val)
-	console.log("pkt  hdr_len: " + hdr_len)
-	console.log("pkt body_len: " + body_len)
+	//console.log("pkt     type: " + tag_val)
+	//console.log("pkt  hdr_len: " + hdr_len)
+	//console.log("pkt body_len: " + body_len)
 
 	if(hdr_len + body_len > data.length)
 		errQuit("packet is larger than available data")
@@ -1422,7 +1405,7 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 	return digest.slice(0, key_len)
 }
 
-function create_pkt9(ptext, passphrase, salt)
+function create_pkt9(ptext, passphrase, salt, prefix)
 {
 	assertType(ptext, 'Uint8Array')
 	assertType(passphrase, 'Uint8Array')
@@ -1435,7 +1418,8 @@ function create_pkt9(ptext, passphrase, salt)
 	c5.setKey(key)
 
 	/* encrypt with OpenPGP CFB Mode (see 13.9) */
-	var prefix = crypt_gen_random(8)
+	if(prefix == undefined)
+		prefix = crypt_gen_random(8)
 	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
 
 	var ctext = new Uint8Array(10 + ptext.length)
@@ -1518,13 +1502,14 @@ function crc24(bytes)
    output:
 	result (string like '-----BEGIN PGP MESSAGE-----....')
 */
-function encrypt(ptext, pword)
+function encrypt(ptext, pword, salt, prefix)
 {
 	assertType(ptext, 'Uint8Array')
 	assertType(pword, 'Uint8Array')
 
-	/* 1) Select a salt S and an iteration count c */
-	var salt = crypt_gen_random(8)
+	/* 1) Select a salt S */
+	if(salt == undefined)
+		salt = crypt_gen_random(8)
 	console.debug("salt: " + bytes_pretty(salt));
 	
 	/* packet 11 is Literal Data Packet (holding the plaintext) */
@@ -1535,7 +1520,7 @@ function encrypt(ptext, pword)
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
 	console.debug("pass: " + bytes_pretty(pword))
-	pkt9 = create_pkt9(pkt11, pword, salt)
+	pkt9 = create_pkt9(pkt11, pword, salt, prefix)
 	console.debug("pkt9 (full): " + bytes_pretty(pkt9))
 
 	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
@@ -1571,18 +1556,14 @@ function encrypt(ptext, pword)
 	return output
 }
 
-/******************************************************************************
- FORM INTERACTION, CALLBACKS
-******************************************************************************/
-
-function btn_decrypt()
+/* input:
+	ctext: string like '-----BEGIN PGP MESSAGE-----....'
+	pword: passphrase (array of byte value)
+   output:
+	ptext: plaintext (array of byte values)
+*/
+function decrypt(ctext, passphrase)
 {
-	var ctext = elem_ciphertext.value
-	var passphrase = elem_passphrase.value
-
-	if(!passphrase.length)
-		errQuit('missing passphrase')
-
 	/* strip header, footer */
 	if(ctext.substr(0,29) != '-----BEGIN PGP MESSAGE-----\n\n')
 		errQuit("missing .gpg header");
@@ -1671,7 +1652,7 @@ function btn_decrypt()
 	console.debug('CAST5         prefix: ' + bytes_pretty(prefix))
 
 	u8memcpy(FR,0, ctext,0, 8)							/* FR = ctext[0..7] */
-	FRE = c5.encrypt(FR, key)							/* FRE = cast5(FR, key) */
+	FRE = c5.encrypt(FR)								/* FRE = cast5(FR, key) */
 
 	if((ctext[8]^FRE[0]) != prefix[6] || (ctext[9]^FRE[1]) != prefix[7])
 		errQuit("key check failed (likely wrong passphrase)")
@@ -1685,7 +1666,7 @@ function btn_decrypt()
 	var srcI = 10
 	var remaining = ptext.length
 	while(remaining > 0) {
-		FRE = c5.encrypt(FR, key)						/* FRE = cast5(FR, key) */
+		FRE = c5.encrypt(FR)							/* FRE = cast5(FR, key) */
 		u8memcpy(FR,0, ctext,srcI, 8)					/* FR = ctext */
 
 		if(remaining >= 8)								/* ptext += FRE^ctext */
@@ -1716,6 +1697,23 @@ function btn_decrypt()
 	if(u8cmp(pkt11.slice(11,11+4), [0, 0, 0, 0]))
 		errQuit("expected to decrypt dummy date 00000000")
 	msg = pkt11.slice(15)
+
+	return msg
+}
+
+/******************************************************************************
+ FORM INTERACTION, CALLBACKS
+******************************************************************************/
+
+function btn_decrypt()
+{
+	var ctext = elem_ciphertext.value
+	var passphrase = elem_passphrase.value
+
+	if(!passphrase.length)
+		errQuit('missing passphrase')
+
+	msg = decrypt(ctext, passphrase)
 
 	console.log("msg: " + msg)
 

@@ -49,6 +49,7 @@ index = replace_func(index, 'ajax_file', '')
 index = replace_func(index, 'btn_encrypt', '')
 index = replace_func(index, 'btn_host', '')
 index = replace_func(index, 'btn_save_sdd', '')
+index = replace_func(index, 'test_cast5', '')
 index = replace_func(index, 'test', '')
 
 # replace cryptopaste_init()
