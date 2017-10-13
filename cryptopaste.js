@@ -1,5 +1,5 @@
 /*
- main javascript file (utilities + glue + ...)
+ Main CryptoPaste JS Program
 
  Copyright (c) 2013-2017 Andrew Lamoureux
 
@@ -241,67 +241,6 @@ function ajax_file(url, data_string) {
  GENERAL UTILITIES
 ******************************************************************************/
 
-/* converts "AA" to [0x41, 0x00, 0x41, 0x00,] */
-function str_to_uni16(input)
-{
-	array = []
-
-	for(var i=0; i<input.length; ++i) {
-		var cc = input.charCodeAt(i)
-
-		if(cc > 65536) {
-			errQuit("char code is greater than 2-bytes!")
-		}
-
-		array.push(cc & 0xFF)
-		array.push(cc >> 8)
-	}
-
-	return array
-}
-
-/* convert [0x41, 0x00, 0x41, 0x00] to "AA" */
-function uni16_to_str(array)
-{
-	var result = ''
-
-	if(array.length % 2) {
-		errQuit("array size not a multiple of 2 when decoding uni16")
-	}
-
-	for(var i=0; i<array.length; i+=2) {
-		var cc = array[i] | (array[i+1] << 8)
-		result += String.fromCharCode(cc)
-	}
-
-	return result
-}
-
-/* converts "AAAA" to [0x41, 0x41, 0x41, 0x41] */
-function ascii_decode(input)
-{
-	var result = new Uint8Array(input.length)
-
-	for(var i=0; i<input.length; ++i) {
-		result[i] = input.charCodeAt(i)
-	}
-
-	return result
-}
-
-/* converts [0x41, 0x41, 0x41, 0x41] to "AAAA" */
-function ascii_encode(array)
-{
-	result = ''
-
-	for(var i=0; i<array.length; ++i) {
-		result += String.fromCharCode(array[i])
-	}
-
-	return result
-}
-
-/* converts [0xDE, 0xAD, 0xBE, 0xEF] to "DEADBEEF" */
 function bytes_pretty(bytes)
 {
 	/* map doesn't work right on UInt8Array, eg:
@@ -325,6 +264,125 @@ function bytes_pretty(bytes)
 				return t;
 		}
 	).join('') + suffix
+}
+
+/*  INPUT: string to be encoded (javascript string)
+   OUTPUT: encoding (array of bytes: Uint8Array) */
+function utf8_encode(str)
+{
+	/* map the string to char codes */
+	var charCodes = Array.from(str)
+	charCodes = charCodes.map(function(x) { return x.charCodeAt(0) })
+
+	/* first pass: count the bytes needed */
+	var bytesNeeded = charCodes.reduce(
+		function(sum, charCode) {
+			if(charCode <= 0x7F) return sum+1
+			if(charCode <= 0x7FF) return sum+2
+			if(charCode <= 0xFFFF) return sum+3
+			if(charCode <= 0x10FFFF) return sum+4
+			errQuit('unexpected character code: ' + charCode + ' in utf8_encode()')
+		},
+		0 /* initial reduce value */
+	)
+	
+	/* allocate the result */
+	var result = new Uint8Array(bytesNeeded)
+
+	/* map the char codes to bytes */
+	var src, dst	
+	for(dst=0, src=0; src < charCodes.length; ++src) {
+
+		var cc = charCodes[src]
+
+		if(cc <= 0x7F) {
+			result[dst] = cc;
+			dst += 1
+		}
+		else if(cc <= 0x7FF) {
+			result[dst] = 0xC0 | (cc >> 6)				// 110xxxxx
+			result[dst+1] = 0x80 | (cc & 0x3F)			// 10xxxxxx
+			dst += 2
+		}
+		else if(cc <= 0xFFFF) {
+			result[dst] = 0xE0 | (cc >> 12)				// 1110xxxx
+			result[dst+1] = 0x80 | ((cc & 0xFC0)>>6)	// 10xxxxxx
+			result[dst+2] = 0x80 | (cc & 0x3F)			// 10xxxxxx
+			dst += 3
+		}
+		else {
+			result[dst] = 0xF0 | (cc >> 18)				// 11110xxx
+			result[dst+1] = 0x80 | ((cc & 0x3F000)>>12)	// 10xxxxxx
+			result[dst+2] = 0x80 | ((cc & 0xFC0)>>6)	// 10xxxxxx
+			result[dst+3] = 0x80 | (cc & 0x3F)			// 10xxxxxx
+			dst += 4
+		}
+	}
+
+	/* return the bytes */
+	return result
+}
+
+/*  INPUT: Uint8Array (array of bytes)
+	OUTPUT: javascript string
+*/
+function utf8_decode(bytes)
+{
+	/* first pass: count the number of char codes to allocate */
+	var src, dst, numChars
+
+	for(src=0, numChars=0; src < bytes.length; numChars += 1) {
+		var b = bytes[src]
+	
+		if((b & 0x80) == 0)
+			src += 1
+		else if((b & 0xE0) == 0xC0)
+			src += 2
+		else if((b & 0xF0) == 0xE0)
+			src += 3
+		else if((b & 0xF8) == 0xF0)
+			src += 4
+		else
+			errQuit('unexpected utf8 byte: ' + b + ' in utf8_decode()')
+	}
+
+	/* allocate the char codes */
+	var charCodes = new Uint32Array(numChars)
+	
+	/* second pass: translate the bytes into char codes */
+
+	for(src=0, dst=0; src < bytes.length; ++dst) {
+		var b = bytes[src]
+		var charCode = 0
+
+		if((b & 0x80) == 0) {
+			charCode = bytes[src]
+			src += 1
+		}
+		else if((b & 0xE0) == 0xC0) {
+			charCode = (bytes[src] & 0x1F) << 6
+			charCode |= (bytes[src+1] & 0x3F)
+			src += 2
+		}
+		else if((b & 0xF0) == 0xE0) {
+			charCode = (bytes[src] & 0x0F) << 12
+			charCode |= (bytes[src+1] & 0x3F) << 6
+			charCode |= (bytes[src+2] & 0x3F)
+			src += 3
+		}
+		else if((b & 0xF8) == 0xF0) {
+			charCode = (bytes[src] & 0x07) << 18
+			charCode |= (bytes[src+1] & 0x3F) << 12
+			charCode |= (bytes[src+2] & 0x3F) << 6
+			charCode |= (bytes[src+3] & 0x3F)
+			src += 4
+		}
+
+		charCodes[dst] = charCode
+	}
+
+	/* map the char codes to a string */
+	return String.fromCharCode.apply(null, charCodes)
 }
 
 function crypt_gen_random(len)
@@ -428,7 +486,11 @@ function uint16_to_bytes(x, endian)
 /* converts 'QUFBQQo=' to [0x41, 0x41, 0x41, 0x41] */
 function b64_to_bytes(str)
 {
-	return ascii_decode(atob(str))
+	var tmp = atob(str)
+	result = new Uint8Array(tmp.length)
+	for(var i=0; i<tmp.length; ++i)
+		result[i] = tmp.charCodeAt(i)
+	return result
 }
 
 /* converts [0x41, 0x41, 0x41, 0x41] to 'QUFBQQo='
@@ -648,7 +710,7 @@ function s2k(passphrase, salt, hash_id, count, key_len)
 {
 	/* if sent "AAAA" convert to [0x41, 0x41, 0x41, 0x41] */
 	if(typeof(passphrase) == "string") {
-		var tmp = ascii_decode(passphrase)
+		var tmp = utf8_encode(passphrase)
 		console.debug("passphrase: " + passphrase + " -> " + bytes_pretty(tmp))
 		passphrase = tmp
 	}
@@ -736,9 +798,9 @@ function create_pkt11(msg)
 	body = new Uint8Array(2 + fname.length + 4)
 	body[0] = 0x62									/* 'b' format (binary) */
 	body[1] = fname.length							/* filename len */
-	body.set(ascii_decode(fname), 2)				/* filename */
+	body.set(utf8_encode(fname), 2)				/* filename */
 	body.set([0,0,0,0], 2 + fname.length)			/* date */
-	body = u8concat(body, msg)				/* message */
+	body = u8concat(body, msg)						/* message */
 	
 	return create_pkt(new Uint8Array(body), 11)
 }
@@ -765,14 +827,14 @@ function crc24(bytes)
 
 /* input:
 	ptext: plaintext (array of byte values)
-	pword: passphrase (array of byte value)
+	pass: passphrase (array of byte value)
    output:
 	result (string like '-----BEGIN PGP MESSAGE-----....')
 */
-function encrypt(ptext, pword, salt, prefix)
+function encrypt(ptext, pass, salt, prefix)
 {
 	assertType(ptext, 'Uint8Array')
-	assertType(pword, 'Uint8Array')
+	assertType(pass, 'Uint8Array')
 
 	/* 1) Select a salt S */
 	if(salt == undefined)
@@ -786,8 +848,8 @@ function encrypt(ptext, pword, salt, prefix)
 
 	/* packet 9 is Symmetrically Encrypted Data Packet
 		(encapsulating (encrypted) the packet 9) */
-	console.debug("pass: " + bytes_pretty(pword))
-	pkt9 = create_pkt9(pkt11, pword, salt, prefix)
+	console.debug("pass: " + bytes_pretty(pass))
+	pkt9 = create_pkt9(pkt11, pass, salt, prefix)
 	console.debug("pkt9 (full): " + bytes_pretty(pkt9))
 
 	/* packet 3 is Encrypted Session Key Packet (holds the salt) */
@@ -825,9 +887,9 @@ function encrypt(ptext, pword, salt, prefix)
 
 /* input:
 	ctext: string like '-----BEGIN PGP MESSAGE-----....'
-	pword: passphrase (array of byte value)
+	pword: passphrase (Uint8Array)
    output:
-	ptext: plaintext (array of byte values)
+	ptext: plaintext (Uint8Array)
 */
 function decrypt(ctext, passphrase)
 {
@@ -991,16 +1053,15 @@ function btn_decrypt()
 
 	console.log("msg: " + msg)
 
-	elem_plaintext.value = ascii_encode(msg)
+	elem_plaintext.value = utf8_decode(msg)
 
 	mode_activate('decrypted')
 }
 
 function btn_encrypt()
 {
-	var plaintext = ascii_decode(elem_plaintext.value)
-	//var plaintext = str_to_uni16(elem_plaintext.value)
-	var pass_bytes = ascii_decode(elem_passphrase.value)
+	var plaintext = utf8_encode(elem_plaintext.value)
+	var pass_bytes = utf8_encode(elem_passphrase.value)
 
 	output = encrypt(plaintext, pass_bytes)
 
@@ -1062,26 +1123,64 @@ function btn_host()
 ******************************************************************************/
 function test()
 {
-	var known = '-----BEGIN PGP MESSAGE-----\n\n'
+	var known, salt, prefix
+	var ptext, ptext_enc, ctext, ctext_enc, pass, pass_enc
+	var tmp
+
+	known = '-----BEGIN PGP MESSAGE-----\n\n'
 	known += 'jA0EAwMCESIzRFVmd4hgpCi+L/NDluevyPWFyNZ5Ue71k0/0/aYt1A0Yol+QCECr'
 	known += 'uTROYGQ/Q5AI\n=hjCh\n-----END PGP MESSAGE-----\n'
 
 	/* encrypt against known result with fixed salt, prefix */
-	var salt = new Uint8Array([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
-	var prefix = new Uint8Array([0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8])
-	var ptext = ascii_decode("Hello, world!")	
-	var passph = ascii_decode("pw")
-	var out = encrypt(ptext, passph, salt, prefix)
-	assert(out == known) // known result?
-	out = decrypt(out, passph) // check decrypt
-	assert(u8cmp(out, ptext) == 0)
+	console.log('"Hello, world!" with fixed salt, prefix')
+	salt = new Uint8Array([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
+	prefix = new Uint8Array([0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8])
+	ptext = "Hello, world!"	
+	ptext_enc = utf8_encode(ptext)
+	pass = 'pw'
+	pass_enc = utf8_encode(pass)
+
+	console.log('encrypt()')
+	ctext_enc = encrypt(ptext_enc, pass_enc, salt, prefix)
+	assert(ctext_enc == known)
+
+	console.log('decrypt()')
+	tmp = decrypt(ctext_enc, pass_enc)
+	tmp = utf8_decode(tmp)
+	assert(!u8cmp(tmp, ptext))
 
 	/* encrypt again, this time with salt, prefix unspecified */
-	out = encrypt(ptext, passph)
-	assert(out != known)
-	out = decrypt(out, passph)
-	assert(u8cmp(out, ptext) == 0)
-		
+	console.log('"Hello, world!" with random salt, prefix')
+	console.log('encrypt()')
+	ctext_enc = encrypt(ptext_enc, pass_enc)
+	assert(ctext_enc != known)
+	console.log('decrypt()')
+	tmp = decrypt(ctext_enc, pass_enc)
+	tmp = utf8_decode(tmp)
+	assert(!u8cmp(tmp, ptext))
+	
+	/* now some foreign language action */
+	console.log('foreign language action')
+	ptext = ''
+	ptext += 'На берегу пустынных волн\n'
+	ptext += 'Стоял он, дум великих полн,\n'
+	ptext += 'И вдаль глядел. Пред ним широко\n'
+	ptext += 'Река неслася; бедный чёлн\n'
+	ptext += 'По ней стремился одиноко.\n'
+	ptext += 'По мшистым, топким берегам\n'
+	ptext += 'Чернели избы здесь и там,\n'
+	ptext += 'Приют убогого чухонца;\n'
+	ptext += 'И лес, неведомый лучам\n'
+	ptext += 'В тумане спрятанного солнца,\n'
+	ptext += 'Кругом шумел.\n'
+	ptext_enc = utf8_encode(ptext)
+	pass_enc = crypt_gen_random(8)
+
+	ctext_enc = encrypt(ptext_enc, pass_enc)
+	tmp = decrypt(ctext_enc, pass_enc)
+	tmp = utf8_decode(tmp)
+	assert(!u8cmp(tmp, ptext))
+	
 	/* done */	
 	console.log('success!')
 }
