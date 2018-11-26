@@ -1,10 +1,32 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
 <head>
- <meta charset="UTF-8">
- <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+
+	<!-- Basic Page Needs
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<meta charset="utf-8">
+	<title>CryptoPaste</title>
+	<meta name="description" content="">
+	<meta name="author" content="">
+
+	<!-- Mobile Specific Metas
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- FONT
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+
+	<!-- CSS
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link rel="stylesheet" href="Skeleton-2.0.4/css/normalize.css">
+	<link rel="stylesheet" href="Skeleton-2.0.4/css/skeleton.css">
+	<link rel="stylesheet" href="stylesheet2.css">
+
+	<!-- Favicon
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link rel="icon" type="image/png" href="Skeleton-2.0.4/images/favicon.png">
+
 </head>
 
 <script src="utf8.js"></script>
@@ -13,83 +35,58 @@
 <script src="cryptopaste.js"></script>
 
 <body onload="cryptopaste_init()">
+	<!-- Primary Page Layout
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<div class="container" style="margin-top:15px">
+		<div class="row">
+			<div class="twelve columns">
+				<label id="plaintext_label" for="plaintext">Message:</label>
+				<textarea id="plaintext" class="u-full-width" placeholder="(private message to protect)" rows=16></textarea>
 
-<h1 id=mode>CryptoPaste</h1>
+				<label id="ciphertext_label" for="ciphertext">Encrypted:</label>
+				<textarea id="ciphertext" class="u-full-width" placeholder="(protected private message)" rows=16></textarea>
+			</div>
+		</div>
 
-<textarea id="plaintext"
-       class="myTextInput"
- placeholder="(private data to protect)"
-       style="display:none">
-</textarea>
+		<div class="row">
+			<div class="twelve columns">
+				<label id="passphrase_label" for="passphrase">Passphrase:</label>
+				<input type="password" id="passphrase" class="u-full-width" placeholder="(choose a strong passphrase)" />
+			</div>
+		</div>
 
-<textarea id="ciphertext"
-       class="myTextInput"
- placeholder="(your encrypted text will go here)"
-       style="display:none"><!-- CIPHERTEXT --></textarea>
+		<div id="xxx" class="row">	
+			<div class="twelve columns">
+				<input type="button" id="encrypt_btn" class="button-primary" value="Encrypt" onClick="btn_encrypt()" />
+				<input type="button" id="decrypt_btn" class="button-primary" value="Decrypt" onClick="btn_decrypt()" />
+			</div>
+		</div>
 
-<input type="password"
-         id="passphrase"
-      class="myTextInput"
-      style="height: 32px; display:none"
-placeholder="(passphrase)">
-</textarea>
+		<div id="buttons_staging" class="row">	
+			<div class="twelve columns">
+				<input type="button" id="host_btn" class="button-primary" value="Create Link" onClick="btn_host()" />
+				<input type="button" id="local_btn" class="button-primary" value="Save Self-Decrypting Document" onClick="btn_save_sdd()" />
+			</div>
+		</div>
 
-<input type="button"
-         id="decrypt_btn"
-      class="myButton"
-      value="Decrypt"
-      style="display:none"
-    onClick="btn_decrypt()"/>
+		<div class="row">
+			<label id="url_share_info">Link to others:</label>
+			<input type="text" id="url_share" class="u-full-width" readonly>
+		</div>
 
-<input type="button"
-         id="encrypt_btn"
-      class="myButton"
-      value="Encrypt"
-      style="display:none"
-    onClick="btn_encrypt()"/>
+		<div class="row">
+			<label id="url_raw_info">Link to raw data stored on server:</label>
+			<input type="text" id="url_raw" class="u-full-width" readonly>
+		</div>
 
-<p id="encrypt_note"
- style="display:none">
-    *This is a local operation performed by your browser. Nothing will be transmitted yet
-</p>
+		<div id="about" class="row">
+			CryptoPaste is free, <a href='https://github.com/lwerdna/cryptopaste'>open source</a> encryption implementing the <a href="http://openpgp.org">OpenPGP standard</a>. 
+		</div>
+	</section>
 
-<input type="button"
-         id="host_btn"
-      class="myButton"
-      value="Create Link (ciphertext hosted on cryptopaste.com)"
-      style="display:none"
-    onClick="btn_host()"/>
 
-<input type="button"
-         id="local_btn"
-      class="myButton"
-      value="Save Self-Decrypting Document (no network activity)"
-      style="display:none"
-    onClick="btn_save_sdd()"/>
-
-<p id="url_share_info" style="display:none">
-  Use this link to share your protected data with others
-</p>
-<textarea id="url_share"
-       class="myTextInput"
-       style="height: 32px; display:none"
- placeholder="(sharing url)">
-</textarea>
-
-<p id="url_raw_info" style="display:none">
-  This link shows the raw data stored by the server:
-</p>
-<textarea id="url_raw"
-       class="myTextInput"
-       style="height: 32px; display:none">
-</textarea>
-
-<hr>
-
-<font size=-2>
- CryptoPaste is free, <a href='https://github.com/lwerdna/cryptopaste'>open source</a> encryption implementing the <a href="http://openpgp.org">OpenPGP standard</a>.
-</font>
-
+<!-- End Document
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
 </body>
-
 </html>
+

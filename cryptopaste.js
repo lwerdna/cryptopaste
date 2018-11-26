@@ -23,16 +23,21 @@
 /******************************************************************************
  SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
-var elem_mode
+
+// one of {'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
+var mode
 
 var elem_plaintext
 var elem_ciphertext
 var elem_passphrase
 
+var elem_plaintext_label
+var elem_ciphertext_label
+var elem_passphrase_label
+
 var elem_decrypt_btn
 var elem_encrypt_btn
-var elem_host_btn
-var elem_local_btn
+var elem_buttons_staging
 
 var elem_url_share_info
 var elem_url_share
@@ -40,28 +45,37 @@ var elem_url_share
 var elem_url_raw_info
 var elem_url_raw
 
+var elem_about
+
 /******************************************************************************
  FUNCTIONS
 ******************************************************************************/
 function set_globals()
 {
-	/* collect important elements */
-	elem_mode = document.getElementById('mode')
+	console.debug("set_globals()")
 
+	mode = 'encrypt'
+
+	/* collect important elements */
 	elem_plaintext = document.getElementById('plaintext')
 	elem_ciphertext = document.getElementById('ciphertext')
 	elem_passphrase = document.getElementById('passphrase')
 
+	elem_plaintext_label = document.getElementById('plaintext_label')
+	elem_ciphertext_label = document.getElementById('ciphertext_label')
+	elem_passphrase_label = document.getElementById('passphrase_label')
+
 	elem_decrypt_btn = document.getElementById('decrypt_btn')
 	elem_encrypt_btn = document.getElementById('encrypt_btn')
-	elem_host_btn = document.getElementById('host_btn')
-	elem_local_btn = document.getElementById('local_btn')
 
+	elem_buttons_staging = document.getElementById('buttons_staging')
 	elem_url_share_info = document.getElementById('url_share_info')
 	elem_url_share = document.getElementById('url_share')
 
 	elem_url_raw_info = document.getElementById('url_raw_info')
 	elem_url_raw = document.getElementById('url_raw')
+	
+	elem_about = document.getElementById('about')
 }
 
 function cryptopaste_init()
@@ -115,23 +129,26 @@ function cryptopaste_init()
 		errQuit('don\'t know how to handle pathname: ' + pathname)
 	}
 
-	mode_activate(mode);
+	gui_switch()
 }
 
 /* show elements corresponding to the current mode */
-function mode_activate(mode)
+function gui_switch()
 {
-	console.debug("mode_activate(): " + mode)
+	console.debug("gui_switch(): " + mode)
 
 	/* hide everything */
 	elem_plaintext.style.display = 'none'
 	elem_ciphertext.style.display = 'none'
 	elem_passphrase.style.display = 'none'
 
+	elem_plaintext_label.style.display = 'none'
+	elem_ciphertext_label.style.display = 'none'
+	elem_passphrase_label.style.display = 'none'
+
 	elem_encrypt_btn.style.display = 'none'
 	elem_decrypt_btn.style.display = 'none'
-	elem_host_btn.style.display = 'none'
-	elem_local_btn.style.display = 'none'
+	elem_buttons_staging.style.display = 'none'
 
 	elem_url_share_info.style.display = 'none'
 	elem_url_share.style.display = 'none'
@@ -139,39 +156,45 @@ function mode_activate(mode)
 	elem_url_raw_info.style.display = 'none'
 	elem_url_raw.style.display = 'none'
 
+	elem_about.style.display = 'none'
+
 	if(mode == 'encrypt') {
-		elem_mode.innerText = "Encrypt"
+		elem_plaintext_label.style.display = ''
 		elem_plaintext.style.display = ''
+		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
 		elem_encrypt_btn.style.display = ''
+		elem_about.style.display = ''
 	}
 	else
 	if(mode == 'staging') {
-		elem_mode.innerText = "Staging"
+		elem_ciphertext_label.style.display = ''
 		elem_ciphertext.style.display = ''
-		elem_host_btn.style.display = ''
-		elem_local_btn.style.display = ''
+		elem_buttons_staging.style.display = ''
 	}
 	else
 	if(mode == 'decrypt') {
-		elem_mode.innerText = "Decrypt"
+		elem_ciphertext_label.style.display = ''
 		elem_ciphertext.style.display = ''
+		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
 		elem_decrypt_btn.style.display = ''
 	}
 	else
 	if(mode == 'decrypted') {
-		elem_mode.innerText = "Decryption Successful"
+		elem_plaintext_label.style.display = ''
 		elem_plaintext.style.display = ''
 	}
 	else
 	if(mode == 'hosted') {
-		elem_mode.innerText = "Hosted"
 		elem_url_share_info.style.display = ''
 		elem_url_share.style.display = ''
 
 		elem_url_raw_info.style.display = ''
 		elem_url_raw.style.display = ''
+	}
+	else {
+		errQuit("unknown mode: " + mode)
 	}
 }
 
@@ -1055,7 +1078,8 @@ function btn_decrypt()
 
 	elem_plaintext.value = utf8_decode(msg)
 
-	mode_activate('decrypted')
+	mode = 'decrypted'
+	gui_switch()
 }
 
 function btn_encrypt()
@@ -1070,7 +1094,8 @@ function btn_encrypt()
 	elem_passphrase.value = ''
 
 	elem_ciphertext.value = output
-	mode_activate('staging')
+	mode = 'staging'
+	gui_switch()
 }
 
 function btn_save_sdd()
@@ -1112,10 +1137,11 @@ function btn_host()
 	adj_adj_anim = fname.substr(0,fname.length-4)
 
 	/* update gui stuff */
-	elem_url_share.innerText = 'https://cryptopaste.com/' + adj_adj_anim
-	elem_url_raw.innerText = 'https://cryptopaste.com/pastes/' + fname
+	elem_url_share.value = 'https://cryptopaste.com/' + adj_adj_anim
+	elem_url_raw.value = 'https://cryptopaste.com/pastes/' + fname
 
-	mode_activate('hosted')
+	mode = 'hosted'
+	gui_switch()
 }
 
 /******************************************************************************
