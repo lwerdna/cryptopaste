@@ -1,46 +1,35 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
 <head>
- <meta charset="UTF-8">
- <style type="text/css">
-body
-{
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 14px;
-	background-color: #C1C1FF;
-	margin: 16px;
-}
-h1
-{
-	margin-bottom: 4px;
-}
-.myTextInput
-{
-	background-color: #efeffe;
-	font-family: Consolas, Menlo, Monaco, Lucida Console, monospace, serif;
-	border: 2px solid #48485f;
-	height: 200px;
-	width: 100%;
-    margin-bottom: 2px;
-}
-.myButton
-{
-	background-color: #c4f1fe;
-	border-top: 2px solid #a3ceda;
-	border-left: 2px solid #a3ceda;
-	border-right: 2px solid #4f6267;
-	border-bottom: 2px solid #4f6267;
-	padding: 10px 20px;
-	font-size: 14px;
-	font-weight: bold;
-	color: #2d525d;
-	width: 100%;
-	margin-bottom: 2px;
-}
+
+	<!-- Basic Page Needs
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<meta charset="utf-8">
+	<title>CryptoPaste</title>
+	<meta name="description" content="">
+	<meta name="author" content="">
+
+	<!-- Mobile Specific Metas
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- FONT
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+
+	<!-- CSS
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link rel="stylesheet" href="Skeleton-2.0.4/css/normalize.css">
+	<link rel="stylesheet" href="Skeleton-2.0.4/css/skeleton.css">
+	<style type="text/css">
+
 
 </style>
+
+
+	<!-- Favicon
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<link rel="icon" type="image/png" href="Skeleton-2.0.4/images/favicon.png">
 
 </head>
 
@@ -999,16 +988,21 @@ function OpenpgpSymencCast5() {
 /******************************************************************************
  SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
-var elem_mode
+
+// one of {'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
+var mode
 
 var elem_plaintext
 var elem_ciphertext
 var elem_passphrase
 
+var elem_plaintext_label
+var elem_ciphertext_label
+var elem_passphrase_label
+
 var elem_decrypt_btn
 var elem_encrypt_btn
-var elem_host_btn
-var elem_local_btn
+var elem_buttons_staging
 
 var elem_url_share_info
 var elem_url_share
@@ -1016,28 +1010,37 @@ var elem_url_share
 var elem_url_raw_info
 var elem_url_raw
 
+var elem_about
+
 /******************************************************************************
  FUNCTIONS
 ******************************************************************************/
 function set_globals()
 {
-	/* collect important elements */
-	elem_mode = document.getElementById('mode')
+	console.debug("set_globals()")
 
+	mode = 'encrypt'
+
+	/* collect important elements */
 	elem_plaintext = document.getElementById('plaintext')
 	elem_ciphertext = document.getElementById('ciphertext')
 	elem_passphrase = document.getElementById('passphrase')
 
+	elem_plaintext_label = document.getElementById('plaintext_label')
+	elem_ciphertext_label = document.getElementById('ciphertext_label')
+	elem_passphrase_label = document.getElementById('passphrase_label')
+
 	elem_decrypt_btn = document.getElementById('decrypt_btn')
 	elem_encrypt_btn = document.getElementById('encrypt_btn')
-	elem_host_btn = document.getElementById('host_btn')
-	elem_local_btn = document.getElementById('local_btn')
 
+	elem_buttons_staging = document.getElementById('buttons_staging')
 	elem_url_share_info = document.getElementById('url_share_info')
 	elem_url_share = document.getElementById('url_share')
 
 	elem_url_raw_info = document.getElementById('url_raw_info')
 	elem_url_raw = document.getElementById('url_raw')
+	
+	elem_about = document.getElementById('about')
 }
 
 function cryptopaste_init()
@@ -1049,19 +1052,22 @@ function cryptopaste_init()
 
 
 /* show elements corresponding to the current mode */
-function mode_activate(mode)
+function gui_switch()
 {
-	console.debug("mode_activate(): " + mode)
+	console.debug("gui_switch(): " + mode)
 
 	/* hide everything */
 	elem_plaintext.style.display = 'none'
 	elem_ciphertext.style.display = 'none'
 	elem_passphrase.style.display = 'none'
 
+	elem_plaintext_label.style.display = 'none'
+	elem_ciphertext_label.style.display = 'none'
+	elem_passphrase_label.style.display = 'none'
+
 	elem_encrypt_btn.style.display = 'none'
 	elem_decrypt_btn.style.display = 'none'
-	elem_host_btn.style.display = 'none'
-	elem_local_btn.style.display = 'none'
+	elem_buttons_staging.style.display = 'none'
 
 	elem_url_share_info.style.display = 'none'
 	elem_url_share.style.display = 'none'
@@ -1069,39 +1075,45 @@ function mode_activate(mode)
 	elem_url_raw_info.style.display = 'none'
 	elem_url_raw.style.display = 'none'
 
+	elem_about.style.display = 'none'
+
 	if(mode == 'encrypt') {
-		elem_mode.innerText = "Encrypt"
+		elem_plaintext_label.style.display = ''
 		elem_plaintext.style.display = ''
+		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
 		elem_encrypt_btn.style.display = ''
+		elem_about.style.display = ''
 	}
 	else
 	if(mode == 'staging') {
-		elem_mode.innerText = "Staging"
+		elem_ciphertext_label.style.display = ''
 		elem_ciphertext.style.display = ''
-		elem_host_btn.style.display = ''
-		elem_local_btn.style.display = ''
+		elem_buttons_staging.style.display = ''
 	}
 	else
 	if(mode == 'decrypt') {
-		elem_mode.innerText = "Decrypt"
+		elem_ciphertext_label.style.display = ''
 		elem_ciphertext.style.display = ''
+		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
 		elem_decrypt_btn.style.display = ''
 	}
 	else
 	if(mode == 'decrypted') {
-		elem_mode.innerText = "Decryption Successful"
+		elem_plaintext_label.style.display = ''
 		elem_plaintext.style.display = ''
 	}
 	else
 	if(mode == 'hosted') {
-		elem_mode.innerText = "Hosted"
 		elem_url_share_info.style.display = ''
 		elem_url_share.style.display = ''
 
 		elem_url_raw_info.style.display = ''
 		elem_url_raw.style.display = ''
+	}
+	else {
+		errQuit("unknown mode: " + mode)
 	}
 }
 
@@ -1939,7 +1951,8 @@ function btn_decrypt()
 
 	elem_plaintext.value = utf8_decode(msg)
 
-	mode_activate('decrypted')
+	mode = 'decrypted'
+	gui_switch()
 }
 
 
@@ -1956,83 +1969,58 @@ function btn_decrypt()
 
 
 <body onload="cryptopaste_init()">
+	<!-- Primary Page Layout
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
+	<div class="container" style="margin-top:15px">
+		<div class="row">
+			<div class="twelve columns">
+				<label id="plaintext_label" for="plaintext">Message:</label>
+				<textarea id="plaintext" class="u-full-width" placeholder="(private message to protect)" rows=16></textarea>
 
-<h1 id=mode>CryptoPaste</h1>
+				<label id="ciphertext_label" for="ciphertext">Encrypted:</label>
+				<textarea id="ciphertext" class="u-full-width" placeholder="(protected private message)" rows=16></textarea>
+			</div>
+		</div>
 
-<textarea id="plaintext"
-       class="myTextInput"
- placeholder="(private data to protect)"
-       style="display:none">
-</textarea>
+		<div class="row">
+			<div class="twelve columns">
+				<label id="passphrase_label" for="passphrase">Passphrase:</label>
+				<input type="password" id="passphrase" class="u-full-width" placeholder="(choose a strong passphrase)" />
+			</div>
+		</div>
 
-<textarea id="ciphertext"
-       class="myTextInput"
- placeholder="(your encrypted text will go here)"
-       style="display:none"><!-- CIPHERTEXT --></textarea>
+		<div id="xxx" class="row">	
+			<div class="twelve columns">
+				<input type="button" id="encrypt_btn" class="button-primary" value="Encrypt" onClick="btn_encrypt()" />
+				<input type="button" id="decrypt_btn" class="button-primary" value="Decrypt" onClick="btn_decrypt()" />
+			</div>
+		</div>
 
-<input type="password"
-         id="passphrase"
-      class="myTextInput"
-      style="height: 32px; display:none"
-placeholder="(passphrase)">
-</textarea>
+		<div id="buttons_staging" class="row">	
+			<div class="twelve columns">
+				<input type="button" id="host_btn" class="button-primary" value="Create Link" onClick="btn_host()" />
+				<input type="button" id="local_btn" class="button-primary" value="Save Self-Decrypting Document" onClick="btn_save_sdd()" />
+			</div>
+		</div>
 
-<input type="button"
-         id="decrypt_btn"
-      class="myButton"
-      value="Decrypt"
-      style="display:none"
-    onClick="btn_decrypt()"/>
+		<div class="row">
+			<label id="url_share_info">Link to others:</label>
+			<input type="text" id="url_share" class="u-full-width" readonly>
+		</div>
 
-<input type="button"
-         id="encrypt_btn"
-      class="myButton"
-      value="Encrypt"
-      style="display:none"
-    onClick="btn_encrypt()"/>
+		<div class="row">
+			<label id="url_raw_info">Link to raw data stored on server:</label>
+			<input type="text" id="url_raw" class="u-full-width" readonly>
+		</div>
 
-<p id="encrypt_note"
- style="display:none">
-    *This is a local operation performed by your browser. Nothing will be transmitted yet
-</p>
+		<div id="about" class="row">
+			CryptoPaste is free, <a href='https://github.com/lwerdna/cryptopaste'>open source</a> encryption implementing the <a href="http://openpgp.org">OpenPGP standard</a>. 
+		</div>
+	</section>
 
-<input type="button"
-         id="host_btn"
-      class="myButton"
-      value="Create Link (ciphertext hosted on cryptopaste.com)"
-      style="display:none"
-    onClick="btn_host()"/>
 
-<input type="button"
-         id="local_btn"
-      class="myButton"
-      value="Save Self-Decrypting Document (no network activity)"
-      style="display:none"
-    onClick="btn_save_sdd()"/>
-
-<p id="url_share_info" style="display:none">
-  Use this link to share your protected data with others
-</p>
-<textarea id="url_share"
-       class="myTextInput"
-       style="height: 32px; display:none"
- placeholder="(sharing url)">
-</textarea>
-
-<p id="url_raw_info" style="display:none">
-  This link shows the raw data stored by the server:
-</p>
-<textarea id="url_raw"
-       class="myTextInput"
-       style="height: 32px; display:none">
-</textarea>
-
-<hr>
-
-<font size=-2>
- CryptoPaste is free, <a href='https://github.com/lwerdna/cryptopaste'>open source</a> encryption implementing the <a href="http://openpgp.org">OpenPGP standard</a>.
-</font>
-
+<!-- End Document
+	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
 </body>
-
 </html>
+
