@@ -15,7 +15,8 @@
 
 	<!-- FONT
 	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
-	<link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+	<!-- <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css"> -->
+	<link href="Skeleton-2.0.4/css/font.css" rel="stylesheet" type="text/css">
 
 	<!-- CSS
 	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
@@ -29,7 +30,7 @@
 
 	<!-- Favicon
 	–––––––––––––––––––––––––––––––––––––––––––––––––– -->
-	<link rel="icon" type="image/png" href="Skeleton-2.0.4/images/favicon.png">
+	<!-- <link rel="icon" type="image/png" href="Skeleton-2.0.4/images/favicon.png"> -->
 
 </head>
 
@@ -989,7 +990,7 @@ function OpenpgpSymencCast5() {
  SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
 
-// one of {'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
+// one of {'hideall', 'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
 var mode
 
 var elem_plaintext
@@ -1082,6 +1083,7 @@ function gui_switch()
 		elem_plaintext.style.display = ''
 		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
+		elem_passphrase.placeholder="(choose a strong passphrase)"
 		elem_encrypt_btn.style.display = ''
 		elem_about.style.display = ''
 	}
@@ -1097,6 +1099,7 @@ function gui_switch()
 		elem_ciphertext.style.display = ''
 		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
+		elem_passphrase.placeholder="(matching passphrase)"
 		elem_decrypt_btn.style.display = ''
 	}
 	else
@@ -1111,6 +1114,10 @@ function gui_switch()
 
 		elem_url_raw_info.style.display = ''
 		elem_url_raw.style.display = ''
+	}
+	else
+	if(mode == 'hideall') {
+		
 	}
 	else {
 		errQuit("unknown mode: " + mode)
@@ -1985,7 +1992,7 @@ function btn_decrypt()
 		<div class="row">
 			<div class="twelve columns">
 				<label id="passphrase_label" for="passphrase">Passphrase:</label>
-				<input type="password" id="passphrase" class="u-full-width" placeholder="(choose a strong passphrase)" />
+				<input type="password" id="passphrase" class="u-full-width" />
 			</div>
 		</div>
 

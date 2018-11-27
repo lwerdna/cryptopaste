@@ -165,6 +165,7 @@ function gui_switch()
 		elem_plaintext.style.display = ''
 		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
+		elem_passphrase.placeholder="(choose a strong passphrase)"
 		elem_encrypt_btn.style.display = ''
 		elem_about.style.display = ''
 	}
@@ -180,6 +181,7 @@ function gui_switch()
 		elem_ciphertext.style.display = ''
 		elem_passphrase_label.style.display = ''
 		elem_passphrase.style.display = ''
+		elem_passphrase.placeholder="(matching passphrase)"
 		elem_decrypt_btn.style.display = ''
 	}
 	else
