@@ -98,7 +98,7 @@ function cryptopaste_init()
 		decrypt mode, eg:
 		https://cryptopaste.com/RedBlueBird.gpg */
 	else 
-	if(/^[A-Za-z]+$/.test(pathname)) {
+	if(/^[A-Za-z]+(\.gpg)?$/.test(pathname)) {
 		var adj_adj_animal = pathname
 		if(adj_adj_animal[0] == '/')
 			adj_adj_animal = adj_adj_animal.substr(1)
@@ -106,7 +106,10 @@ function cryptopaste_init()
 	
 		/* form new url */
 		var path_gpg = window.location.href.replace(adj_adj_animal,
-		  "backend.py?op=read&fname=" + adj_adj_animal + ".gpg")
+		  "backend.py?op=read&fname=" + adj_adj_animal)
+
+		if(!path_gpg.endsWith('.gpg'))
+			path_gpg += '.gpg'
 		console.debug("seeking: " + path_gpg)
 	
 		/* read GPG data into the decrypt field */
