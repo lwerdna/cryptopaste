@@ -11,6 +11,9 @@ def del_old_pastes():
     cutoff = time.time() + (DAYS_EXPIRE*24*60*60)
 
     for fname in glob.glob('./pastes/*.gpg'):
+    	if fname == 'RedBlueBird.gpg':
+    		continue
+
         ftime = os.stat(fname).st_mtime
         if ftime > cutoff:
             #print 'deleting %s' % fname
