@@ -24,7 +24,7 @@
  SETTINGS, GLOBAL VARIABLES
 ******************************************************************************/
 
-// one of {'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
+// one of {'hideall', 'encrypt', 'staging', 'decrypt', 'decrypted', 'hosted'} */
 var mode
 
 var elem_plaintext
@@ -82,17 +82,21 @@ function cryptopaste_init()
 {
 	set_globals()
 
+	mode = 'hideall'
+	gui_switch()
+
 	var pathname = window.location.pathname
 	if(pathname[0] == '/')
 		pathname = pathname.substr(1)
 	
 	/* if nothing is in the pathname, eg: www.cryptopaste.com, then go into
 		normal encrypt mode */
-	if(pathname == '') {
+	if(pathname == '' || pathname == 'index.html') {
 		mode = 'encrypt'
 	}
 	/* if the pathname is AdjAdjAnimal, seek the .gpg from backend and go into
-		decrypt mode */
+		decrypt mode, eg:
+		https://cryptopaste.com/RedBlueBird.gpg */
 	else 
 	if(/^[A-Za-z]+$/.test(pathname)) {
 		var adj_adj_animal = pathname
@@ -118,11 +122,6 @@ function cryptopaste_init()
 		elem_ciphertext.value = resp
 
 		mode = 'decrypt'
-	}
-	/* if we are the 404 handler for a missing .gpg file, pop up an error */
-	else
-	if(/^[A-Za-z]+\.gpg$/.test(pathname)) {
-		errQuit('nonexistent paste: ' + pathname + ' (expired?)')
 	}
 	/* else */
 	else {
@@ -192,6 +191,10 @@ function gui_switch()
 
 		elem_url_raw_info.style.display = ''
 		elem_url_raw.style.display = ''
+	}
+	else
+	if(mode == 'hideall') {
+		
 	}
 	else {
 		errQuit("unknown mode: " + mode)

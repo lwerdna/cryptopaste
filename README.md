@@ -110,4 +110,5 @@ Test decryption by browsing to `http://domain.com/AbaftAbandonedAardvark` and us
 * `$ gpg -z 0 --output doc.gpg --symmetric doc`
 * `$ gpg --decrypt doc.gpg`
 * `$ gpg --output doc --decrypt doc.gpg`
-* for httpd, `ln -s decrypt.html ./errors/err404.html` so http://url/RedBlueBird will serve decrypt.html
+* for httpd `ln -s index.html ./errors/err404.html` so http://localhost:8000/RedBlueBird will serve index.html
+* if that doesn't work, `cp ./index.html ./errors/err404.html`
