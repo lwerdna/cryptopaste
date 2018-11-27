@@ -50,7 +50,7 @@ if 'op' in form:
 
 if op == '':
     print '<p>This is the CryptoPaste backend, meant to be called from the frontend (index.html) javascript code.</p>'
-    print '<p>Try backend.py?op=test or backend.py?op=read&fname=AbaftAbandonedAardvark.gpg to see it in action.</p>'
+    print '<p>Try backend.py?op=test or backend.py?op=read&fname=RedBlueBird.gpg to see it in action.</p>'
     sys.exit(-1)
 
 if op == 'upload':

@@ -103,7 +103,7 @@ And the .htaccess file in thepastes directory:
 Options -Indexes
 ```
 
-Test decryption by browsing to `http://domain.com/AbaftAbandonedAardvark` and using passphrase `pw`.
+Test decryption by browsing to `http://domain.com/RedBlueBird` and using passphrase `pw`.
 
 # notes
 * `$ thttpd -p 8000 -D -c "*.py"`
