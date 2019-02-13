@@ -101,6 +101,7 @@ And the .htaccess file in thepastes directory:
 
 ```
 Options -Indexes
+ErrorDocument 404 /missing_paste.html
 ```
 
 Test decryption by browsing to `http://domain.com/RedBlueBird` and using passphrase `pw`.
