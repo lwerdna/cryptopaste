@@ -13,19 +13,24 @@ def load_file(fpath):
 	return tmp
 
 def replace_func(inp, func, repl):
-    print "replacing function -%s-" % func
+    print("replacing function -%s-" % func)
     regex = r'^function %s.*?^}' % func
     assert re.search(regex, inp, re.MULTILINE|re.DOTALL)
     return re.sub(regex, repl, inp, 0, re.MULTILINE|re.DOTALL)
 
+def inline_css(html, fpath_css, external):
+    print(f'inlining {fpath_css}')
+    internal = '<style type="text/css">\n' + load_file(fpath_css) + '\n</style>\n'
+    assert html.find(external) != -1
+    return html.replace(external, internal)
+
 index = load_file('index.html')
 
-# convert external stylesheet to internal
-internal = load_file('stylesheet.css')
-internal = '<style type="text/css">\n'+internal+'\n</style>\n'
-external = '<link rel="stylesheet" type="text/css" href="stylesheet.css" />'
-assert index.find(external) != -1
-index = index.replace(external, internal)
+# convert external stylesheets to internal
+index = inline_css(index, 'stylesheet.css', '<link rel="stylesheet" type="text/css" href="stylesheet.css" />')
+index = inline_css(index, 'Skeleton-2.0.4/css/font.css', '<link href="Skeleton-2.0.4/css/font.css" rel="stylesheet" type="text/css">')
+index = inline_css(index, 'Skeleton-2.0.4/css/normalize.css', '<link rel="stylesheet" href="Skeleton-2.0.4/css/normalize.css">')
+index = inline_css(index, 'Skeleton-2.0.4/css/skeleton.css', '<link rel="stylesheet" href="Skeleton-2.0.4/css/skeleton.css">')
 
 # find all '<script src="blah.js"></script>' in the index.html
 includes = re.findall(r'<script src=".*"></script>', index)
@@ -34,7 +39,7 @@ includes = re.findall(r'<script src=".*"></script>', index)
 for inc in includes:
 	m = re.match(r'<script src="(.*)"></script>', inc)
 	jsfile = m.group(1)
-	print "replacing %s with %s" % (inc, jsfile)
+	print("replacing %s with %s" % (inc, jsfile))
 	subst = ''
 	subst += '\n<!-- from %s -->\n' % inc
 	subst += '<script type="text/javascript">\n'
@@ -57,13 +62,14 @@ index = replace_func(index, 'test', '')
 minimal_init = ''
 minimal_init += 'function cryptopaste_init()\n'
 minimal_init += '{\n'
-minimal_init += '    set_globals()\n'
-minimal_init += '    mode_activate(\'decrypt\')\n'
+minimal_init += '    set_globals();\n'
+minimal_init += '    mode = "decrypt";\n'
+minimal_init += '    gui_switch();\n'
 minimal_init += '}\n\n'
 index = replace_func(index, 'cryptopaste_init', minimal_init)
 
 # write result back
-print "writing sdd.html"
+print("writing sdd.html")
 fd = open('sdd.html', 'w')
 fd.write(index)
 fd.close()	
