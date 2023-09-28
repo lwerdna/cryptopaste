@@ -107,7 +107,7 @@ ErrorDocument 404 /missing_paste.html
 Test decryption by browsing to `http://domain.com/RedBlueBird` and using passphrase `pw`.
 
 # notes
-* `$ thttpd -p 8000 -D -c "*.py"`
+* `$ thttpd -p 8000 -D -c "*.py"` where `-D` disables background daemon mode and `-c` gives cgi pattern. Then browse to `http://loalhost:8000`.
 * `$ gpg -z 0 --output doc.gpg --symmetric doc`
 * `$ gpg --decrypt doc.gpg`
 * `$ gpg --output doc --decrypt doc.gpg`

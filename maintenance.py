@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import time
@@ -11,7 +11,7 @@ def del_old_pastes():
     now = time.time()
     cutoff = now - (DAYS_EXPIRE*24*60*60)
 
-    print('now=%d cutoff=%d' % (now, cutoff))
+    #print('now=%d cutoff=%d' % (now, cutoff))
 
     for fname in glob.glob('./pastes/*.gpg'):
         if fname.endswith('RedBlueBird.gpg'):
@@ -19,10 +19,11 @@ def del_old_pastes():
 
         ftime = os.stat(fname).st_mtime
         if ftime < cutoff:
-            print('deleting %s' % fname)
+            #print('deleting %s' % fname)
             os.remove(fname)
         else:
-            print('saving %s' % fname)
+            #print('saving %s' % fname)
+            pass
 
 def maintain():
     log24.log24purge()

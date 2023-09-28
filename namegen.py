@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
+import struct
 
 # original adjectives and animals idea from gfycat
 # https://www.npmjs.com/package/adjective-adjective-animal
@@ -1955,8 +1956,7 @@ animals = [ "Aardvark", "Abyssinian", "AdeliePenguin", "Affenpinscher",
 def gen_uint32_t():
 	# os.urandom() is suitable for cryptographic use per:
 	# https://docs.python.org/2/library/os.html
-	ints = map(ord, list(os.urandom(4)))
-	return (ints[0] << 24) | (ints[1] << 16) | (ints[2] << 8) | ints[3]
+    return struct.unpack('I', os.urandom(4))[0]
 
 def gen_name():
 	result = ''
@@ -1968,19 +1968,19 @@ def gen_name():
 	return result
 
 if __name__ == '__main__':
-	print "number of adjectives: %d" % len(adjectives)
-	print "number of animals: %d" % len(animals)
-	print "----------------"
-	print "some random uint32_t:"
-	print "%08X" % gen_uint32_t()
-	print "%08X" % gen_uint32_t()
-	print "%08X" % gen_uint32_t()
-	print "%08X" % gen_uint32_t()
-	print "----------------"
-	print "some random generated names:"
-	print gen_name()
-	print gen_name()
-	print gen_name()
-	print gen_name()
+	print("number of adjectives: %d" % len(adjectives))
+	print("number of animals: %d" % len(animals))
+	print("----------------")
+	print("some random uint32_t:")
+	print("%08X" % gen_uint32_t())
+	print("%08X" % gen_uint32_t())
+	print("%08X" % gen_uint32_t())
+	print("%08X" % gen_uint32_t())
+	print("----------------")
+	print("some random generated names:")
+	print(gen_name())
+	print(gen_name())
+	print(gen_name())
+	print(gen_name())
 
 

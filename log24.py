@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # keeps a simple list of (ip, time) tuples in text file so that frequency of
 # use policies can be implemented (ie: can't use 1000's of times in a day)
@@ -46,7 +46,7 @@ def log24set(entries):
     entries = map(lambda x: '%s %d' % (x[0], x[1]), entries)
     with open(LOG24_FNAME, 'w') as fp:
         fp.write('\n'.join(entries) + '\n')
-    fp.close()   
+    fp.close()
 
 # clear anything in log24 that's over 24 hours old
 def log24purge():
@@ -81,7 +81,7 @@ def log24print():
     now = time.time()
     for e in entries:
         [ip, t] = e
-        
+
         ago_str = ''
         delta = float(now - t)
         if delta < 60:
@@ -92,8 +92,8 @@ def log24print():
             ago_str = '%f hours ago' % (delta/3600)
         else:
             ago_str = '%f days ago' % (delta/(24*3600))
-    
-        print '%s %d (%s)' % (ip, t, ago_str)    
+
+        print('%s %d (%s)' % (ip, t, ago_str))
 
 # for testing
 if __name__ == '__main__':
@@ -106,37 +106,37 @@ if __name__ == '__main__':
     entries = []
 
     # 129.129.129.129 visits every 5 minutes
-    for i in range(twodays / 300):
+    for i in range(twodays // 300):
         log24append('129.129.129.129', now - i*300)
 
     # 130.130.130.130 visits every 20 minutes
-    for i in range(twodays / 1200):
+    for i in range(twodays // 1200):
         log24append('130.130.130.130', now - i*1200)
-    
+
     # 131.131.131.131 visits every hour
-    for i in range(twodays / 3600):
+    for i in range(twodays // 3600):
         log24append('131.131.131.131', now - i*3600)
-     
+
     # 132.132.132.132 visits every two hours
-    for i in range(twodays / 7200):
+    for i in range(twodays // 7200):
         log24append('132.132.132.132', now - i*7200)
 
     # print 'em
     log24print()
 
     # try some queries
-    print '66.66.66.66 visited %d times' % log24gethits('66.66.66.66')
-    print '129.129.129.129 visited %d times' % log24gethits('129.129.129.129')
-    print '130.130.130.130 visited %d times' % log24gethits('130.130.130.130')
-    print '131.131.131.131 visited %d times' % log24gethits('131.131.131.131')
-    print '132.132.132.132 visited %d times' % log24gethits('132.132.132.132')
+    print('66.66.66.66 visited %d times' % log24gethits('66.66.66.66'))
+    print('129.129.129.129 visited %d times' % log24gethits('129.129.129.129'))
+    print('130.130.130.130 visited %d times' % log24gethits('130.130.130.130'))
+    print('131.131.131.131 visited %d times' % log24gethits('131.131.131.131'))
+    print('132.132.132.132 visited %d times' % log24gethits('132.132.132.132'))
 
     # purge  then print
-    print '--------PURGING--------'
+    print('--------PURGING--------')
     log24purge()
     log24print()
-    print '66.66.66.66 visited %d times' % log24gethits('66.66.66.66')
-    print '129.129.129.129 visited %d times' % log24gethits('129.129.129.129')
-    print '130.130.130.130 visited %d times' % log24gethits('130.130.130.130')
-    print '131.131.131.131 visited %d times' % log24gethits('131.131.131.131')
-    print '132.132.132.132 visited %d times' % log24gethits('132.132.132.132')
+    print('66.66.66.66 visited %d times' % log24gethits('66.66.66.66'))
+    print('129.129.129.129 visited %d times' % log24gethits('129.129.129.129'))
+    print('130.130.130.130 visited %d times' % log24gethits('130.130.130.130'))
+    print('131.131.131.131 visited %d times' % log24gethits('131.131.131.131'))
+    print('132.132.132.132 visited %d times' % log24gethits('132.132.132.132'))

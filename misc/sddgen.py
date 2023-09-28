@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # generates the self-decrypting document (SDD) from:
 # index.html, javascript, and css
